@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
+<rfc version="3" ipr="trust200902" docName="draft-maditimbru-rfc8416-bis-00" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" obsoletes="8416" indexInclude="false" consensus="true">
+
+<front>
+<title abbrev="SLURM v2">Simplified Local Internet Number Resource Management with the RPKI (SLURM)</title><seriesInfo value="draft-maditimbru-rfc8416-bis-00" status="standard" name="Internet-Draft"></seriesInfo>
+<author initials="D." surname="Ma" fullname="Di Ma"><organization>ZDNS</organization><address><postal><street></street>
+</postal><email>madi@zdns.cn</email>
+</address></author><author initials="T." surname="Bruijnzeels" fullname="Tim Bruijnzeels"><organization>NLnet Labs</organization><address><postal><street></street>
+</postal><email>tim@nlnetlabs.nl</email>
+<uri>https://www.nlnetlabs.nl/</uri>
+</address></author><date/>
+<area>Internet</area>
+<workgroup></workgroup>
+
+<abstract>
+<t>The Resource Public Key Infrastructure (RPKI) is a global
+authorization infrastructure that allows the holder of Internet
+Number Resources (INRs) to make verifiable statements about those
+resources.  Network operators, e.g., Internet Service Providers
+(ISPs), can use the RPKI to validate BGP route origin assertions.
+ISPs can also use the RPKI to validate the path of a BGP route.
+However, ISPs may want to establish a local view of exceptions to the
+RPKI data in the form of local filters and additions.  The mechanisms
+described in this document provide a simple way to enable INR holders
+to establish a local, customized view of the RPKI, overriding global
+RPKI repository data as needed.</t>
+</abstract>
+
+</front>
+
+<middle>
+
+<section anchor="requirements-notation"><name>Requirements notation</name>
+<t>The key words &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHALL&quot;, &quot;SHALL NOT&quot;, &quot;SHOULD&quot;,
+&quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;NOT RECOMMENDED&quot;, &quot;MAY&quot;, and &quot;OPTIONAL&quot; in
+this document are to be interpreted as described in BCP 14 <xref target="RFC2119"></xref>
+<xref target="RFC8174"></xref> when, and only when, they appear in all capitals, as shown here.</t>
+</section>
+
+<section anchor="introduction"><name>Introduction</name>
+<t>The Resource Public Key Infrastructure (RPKI) is a global
+authorization infrastructure that allows the holder of Internet
+Number Resources (INRs) to make verifiable statements about those
+resources.  For example, the holder of a block of IP(v4 or v6)
+addresses can issue a Route Origin Authorization (ROA) <xref target="RFC6482"></xref> to
+authorize an Autonomous System (AS) to originate routes for that
+block.  Internet Service Providers (ISPs) can then use the RPKI to
+validate BGP routes.  (Validation of the origin of a route is
+described in <xref target="RFC6811"></xref>, and validation of the path of a route is
+described in <xref target="RFC8205"></xref>.)</t>
+<t>However, an RPKI Relying Party (RP) may want to override some of the
+information expressed via configured Trust Anchors (TAs) and the
+certificates downloaded from the RPKI repository system.  For
+instance, <xref target="RFC6491"></xref> recommends the creation of ROAs that would
+invalidate public routes for reserved and unallocated address space,
+yet some ISPs might like to use BGP and the RPKI with private address
+space (see <xref target="RFC1918"></xref>, <xref target="RFC4193"></xref>, and <xref target="RFC6598"></xref>) or private AS numbers
+(see <xref target="RFC1930"></xref> and <xref target="RFC6996"></xref>).  Local use of private address space
+and/or AS numbers is consistent with the RFCs cited above, but such
+use cannot be verified by the global RPKI.  This motivates creation
+of mechanisms that enable a network operator to publish, at its
+discretion, an exception to the RPKI in the form of filters and
+additions (for its own use and that of its customers).  Additionally,
+a network operator might wish to make use of a local override
+capability to protect routes from adverse actions <xref target="RFC8211"></xref>, until
+the results of such actions have been addressed.  The mechanisms
+developed to provide this capability to network operators are hereby
+called &quot;Simplified Local Internet Number Resource Management with the
+RPKI (SLURM)&quot;.</t>
+<t>SLURM allows an operator to create a local view of the global RPKI by
+generating sets of assertions.  For origin validation <xref target="RFC6811"></xref>, an
+assertion is a tuple of {IP prefix, prefix length, maximum length,
+Autonomous System Number (ASN)} as used by the RPKI-Router protocol,
+version 0 <xref target="RFC6810"></xref> and version 1 <xref target="RFC8210"></xref>.  For BGPsec <xref target="RFC8205"></xref>,
+an assertion is a tuple of {ASN, subject key identifier, router
+public key} as used by version 1 of the RPKI-Router protocol.  (For
+the remainder of this document, these assertions are called &quot;ROA
+Prefix Assertions&quot; and &quot;BGPsec Assertions&quot;, respectively.)</t>
+</section>
+
+<section anchor="rp-with-slurm"><name>RP with SLURM</name>
+<t>SLURM provides a simple way to enable an RP to establish a local,
+customized view of the RPKI, overriding RPKI repository data if
+needed.  To that end, an RP with SLURM filters out (i.e., removes
+from consideration for routing decisions) any assertions in the RPKI
+that are overridden by local ROA Prefix Assertions and BGPsec
+Assertions.</t>
+<t>In general, the primary output of an RP is the data it sends to
+routers over the RPKI-Router protocol <xref target="RFC8210"></xref>.  The RPKI-Router
+protocol enables routers to query an RP for all assertions it knows
+about (Reset Query) or for an update of only the changes in
+assertions (Serial Query).  The mechanisms specified in this document
+are to be applied to the result set for a Reset Query and to both the
+old and new sets that are compared for a Serial Query.  RP software
+may modify other forms of output in comparable ways, but that is
+outside the scope of this document.</t>
+<figure><name>SLURM's Position in the RP Stack
+</name>
+<sourcecode type="ascii-art">+--------------+   +---------------------------+   +------------+
+|              |   |                           |   |            |
+| Repositories +---&gt;Local cache of RPKI objects+---&gt; Validation |
+|              |   |                           |   |            |
++--------------+   +---------------------------+   +-----+------+
+                                                        |
+      +-------------------------------------------------+
+      |
++------v-------+   +------------+   +-----------+   +-------------+
+|              |   |            |   |           |   |             |
+|    SLURM     +---&gt;   SLURM    +---&gt;RPKI-Router+---&gt; BGP Speakers|
+|   Filters    |   | Assertions |   | Protocol  |   |             |
++--------------+   +------------+   +-----------+   +-------------+
+</sourcecode>
+</figure>
+</section>
+
+<section anchor="slurm-files-and-mechanisms"><name>SLURM Files and Mechanisms</name>
+
+<section anchor="use-of-json"><name>Use of JSON</name>
+<t>SLURM filters and assertions are specified in JSON format <xref target="RFC8259"></xref>.
+JSON members that are not defined here MUST NOT be used in SLURM
+files.  An RP MUST consider any deviations from the specifications to
+be errors.  Future additions to the specifications in this document
+MUST use an incremented value for the &quot;slurmVersion&quot; member.</t>
+</section>
+
+<section anchor="slurm-file-overview"><name>SLURM File Overview</name>
+<t>A SLURM file consists of a single JSON object containing following members:</t>
+
+<ul>
+<li>A &quot;slurmVersion&quot; member that MUST be set to 1, encoded as a number</li>
+<li><t>A &quot;validationOutputFilters&quot; member (Section 4.3), whose value is
+an object.  The object MUST contain exactly two members:</t>
+
+<ul>
+<li>A &quot;prefixFilters&quot; member, whose value is described in
+Section 4.3.1.</li>
+<li>A &quot;bgpsecFilters&quot; member, whose value is described in
+Section 4.3.2.</li>
+</ul></li>
+<li><t>A &quot;locallyAddedAssertions&quot; member (Section 3.4), whose value is an
+object.  The object MUST contain exactly two members:</t>
+
+<ul>
+<li><t>A &quot;prefixAssertions&quot; member, whose value is described in
+Section 4.4.1.</t>
+</li>
+<li><t>A &quot;bgpsecAssertions&quot; member, whose value is described in
+Section 4.4.2.</t>
+</li>
+</ul></li>
+</ul>
+<t>In the envisioned typical use case, an RP uses both Validation Output
+Filters and Locally Added Assertions.  In this case, the resulting
+assertions MUST be the same as if output filtering were performed
+before locally adding assertions; that is, Locally Added Assertions
+MUST NOT be removed by output filtering.</t>
+<t>The following JSON structure with JSON members represents a SLURM
+file that has no filters or assertions:</t>
+<figure><name>Empty SLURM File
+</name>
+<sourcecode type="ascii-art">{
+  &quot;slurmVersion&quot;: 1,
+  &quot;validationOutputFilters&quot;: {
+    &quot;prefixFilters&quot;: [],
+    &quot;bgpsecFilters&quot;: []
+  },
+  &quot;locallyAddedAssertions&quot;: {
+    &quot;prefixAssertions&quot;: [],
+    &quot;bgpsecAssertions&quot;: []
+  }
+}
+</sourcecode>
+</figure>
+</section>
+
+<section anchor="validation-output-filters"><name>Validation Output Filters</name>
+
+<section anchor="validated-roa-prefix-filters"><name>Validated ROA Prefix Filters</name>
+<t>The RP can configure zero or more Validated ROA Prefix Filters
+(&quot;Prefix Filters&quot; for short).  Each Prefix Filter can contain either
+an IPv4 or IPv6 prefix and/or an ASN.  It is RECOMMENDED that an
+explanatory comment is included with each Prefix Filter so that it
+can be shown to users of the RP software.</t>
+<t>The above is expressed as a value of the &quot;prefixFilters&quot; member, as
+an array of zero or more objects.  Each object MUST contain either 1)
+one of the following members or 2) one of each of the following
+members.</t>
+
+<ul>
+<li><t>A &quot;prefix&quot; member, whose value is a string representing either an
+  IPv4 prefix <xref target="RFC4632"></xref> or an IPv6 prefix (<xref target="RFC5952"></xref>).</t>
+</li>
+<li><t>An &quot;asn&quot; member, whose value is a number.</t>
+</li>
+</ul>
+<t>In addition, each object MAY contain one optional &quot;comment&quot; member,
+whose value is a string.</t>
+<t>The following example JSON structure represents a &quot;prefixFilters&quot;
+member with an array of example objects for each use case listed
+above:</t>
+<figure><name>&quot;prefixFilters&quot; Examples
+</name>
+<sourcecode type="ascii-art">&quot;prefixFilters&quot;: [
+  {
+    &quot;prefix&quot;: &quot;192.0.2.0/24&quot;,
+    &quot;comment&quot;: &quot;All VRPs encompassed by prefix&quot;
+  },
+  {
+    &quot;asn&quot;: 64496,
+    &quot;comment&quot;: &quot;All VRPs matching ASN&quot;
+  },
+  {
+    &quot;prefix&quot;: &quot;198.51.100.0/24&quot;,
+    &quot;asn&quot;: 64497,
+    &quot;comment&quot;: &quot;All VRPs encompassed by prefix, matching ASN&quot;
+  }
+]
+</sourcecode>
+</figure>
+<t>Any Validated ROA Payload (VRP) [RFC6811] that matches any configured
+Prefix Filter MUST be removed from the RP's output.</t>
+<t>A VRP is considered to match with a Prefix Filter if one of the
+following cases applies:</t>
+
+<ol>
+<li><t>If the Prefix Filter only contains an IPv4 or IPv6 prefix, the
+VRP is considered to match the filter if the VRP prefix is equal
+to or covered by the Prefix Filter prefix.</t>
+</li>
+<li><t>If the Prefix Filter only contains an ASN, the VRP is considered
+to match the filter if the VRP ASN matches the Prefix Filter ASN.</t>
+</li>
+<li><t>If the Prefix Filter contains both an IPv4 or IPv6 prefix and an
+ASN, the VRP is considered to match if the VRP prefix is equal to
+or covered by the Prefix Filter prefix and the VRP ASN matches
+the Prefix Filter ASN.</t>
+</li>
+</ol>
+</section>
+
+<section anchor="bgpsec-assertion-filters"><name>BGPsec Assertion Filters</name>
+<t>The RP can configure zero or more BGPsec Assertion Filters (&quot;BGPsec
+Filters&quot; for short).  Each BGPsec Filter can contain an ASN and/or
+the Base64 <xref target="RFC4648"></xref> encoding of a Router Subject Key Identifier
+(SKI), as described in <xref target="RFC8209"></xref> and <xref target="RFC6487"></xref>.  It is RECOMMENDED
+that an explanatory comment is also included with each BGPsec Filter,
+so that it can be shown to users of the RP software.</t>
+<t>The above is expressed as a value of the &quot;bgpsecFilters&quot; member, as
+an array of zero or more objects.  Each object MUST contain one of
+either, or one each of both following members:</t>
+
+<ul>
+<li><t>An &quot;asn&quot; member, whose value is a number</t>
+</li>
+<li><t>An &quot;SKI&quot; member, whose value is the Base64 encoding without
+trailing '=' (Section 5 of <xref target="RFC4648"></xref>) of the certificate's Subject
+Key Identifier as described in Section 4.8.2 of <xref target="RFC6487"></xref>.  (This
+is the value of the ASN.1 OCTET STRING without the ASN.1 tag or
+length fields.)</t>
+</li>
+</ul>
+<t>In addition, each object MAY contain one optional &quot;comment&quot; member,
+whose value is a string.</t>
+<t>The following example JSON structure represents a &quot;bgpsecFilters&quot;
+member with an array of example objects for each use case listed
+above:</t>
+<figure><name>&quot;bgpsecFilters&quot; Examples
+</name>
+<sourcecode type="ascii-art">&quot;bgpsecFilters&quot;: [
+  {
+    &quot;asn&quot;: 64496,
+    &quot;comment&quot;: &quot;All keys for ASN&quot;
+  },
+  {
+    &quot;SKI&quot;: &quot;&lt;Base 64 of some SKI&gt;&quot;,
+    &quot;comment&quot;: &quot;Key matching Router SKI&quot;
+  },
+  {
+    &quot;asn&quot;: 64497,
+    &quot;SKI&quot;: &quot;&lt;Base 64 of some SKI&gt;&quot;,
+    &quot;comment&quot;: &quot;Key for ASN 64497 matching Router SKI&quot;
+  }
+]
+</sourcecode>
+</figure>
+<t>Any BGPsec Assertion that matches any configured BGPsec Filter MUST
+be removed from the RP's output.  A BGPsec Assertion is considered to
+match with a BGPsec Filter if one of the following cases applies:</t>
+
+<ol>
+<li><t>If the BGPsec Filter only contains an ASN, a BGPsec Assertion is
+considered to match if the Assertion ASN matches the Filter ASN.</t>
+</li>
+<li><t>If the BGPsec Filter only contains an SKI, a BGPsec Assertion is
+considered to match if the Assertion Router SKI matches the Filter
+SKI.</t>
+</li>
+<li><t>If the BGPsec Filter contains both an ASN and a Router SKI, then
+a BGPsec Assertion is considered to match if both the Assertion
+ASN matches the Filter ASN and the Assertion Router SKI matches
+the Filter SKI.</t>
+</li>
+</ol>
+</section>
+</section>
+
+<section anchor="locally-added-assertions"><name>Locally Added Assertions</name>
+
+<section anchor="roa-prefix-assertions"><name>ROA Prefix Assertions</name>
+<t>Each RP is locally configured with a (possibly empty) array of ROA
+Prefix Assertions (&quot;Prefix Assertions&quot; for short).  Each ROA Prefix
+Assertion MUST contain an IPv4 or IPv6 prefix and an ASN.  It MAY
+include a value for the maximum length.  It is RECOMMENDED that an
+explanatory comment is also included with each so that it can be
+shown to users of the RP software.</t>
+<t>The above is expressed as a value of the &quot;prefixAssertions&quot; member,
+as an array of zero or more objects.  Each object MUST contain one of
+each of the following members:</t>
+
+<ul>
+<li><t>A &quot;prefix&quot; member, whose value is a string representing either an
+IPv4 prefix (see Section 3.1 of <xref target="RFC4632"></xref>) or an IPv6 prefix (see
+<xref target="RFC5952"></xref>).</t>
+</li>
+<li><t>An &quot;asn&quot; member, whose value is a number.</t>
+</li>
+</ul>
+<t>In addition, each object MAY contain one of each of the following
+members:</t>
+
+<ul>
+<li><t>A &quot;maxPrefixLength&quot; member, whose value is a number.</t>
+</li>
+<li><t>A &quot;comment&quot; member, whose value is a string.</t>
+</li>
+</ul>
+<t>The following example JSON structure represents a &quot;prefixAssertions&quot;
+member with an array of example objects for each use case listed
+above:</t>
+<figure><name>&quot;prefixAssertions&quot; Examples
+</name>
+<sourcecode type="ascii-art">&quot;prefixAssertions&quot;: [
+  {
+    &quot;asn&quot;: 64496,
+    &quot;prefix&quot;: &quot;198.51.100.0/24&quot;,
+    &quot;comment&quot;: &quot;My other important route&quot;
+  },
+  {
+    &quot;asn&quot;: 64496,
+    &quot;prefix&quot;: &quot;2001:DB8::/32&quot;,
+    &quot;maxPrefixLength&quot;: 48,
+    &quot;comment&quot;: &quot;My other important de-aggregated routes&quot;
+  }
+]
+</sourcecode>
+</figure>
+<t>Note that the combination of the prefix, ASN, and optional maximum
+length describes a VRP as described in <xref target="RFC6811"></xref>.  The RP MUST add
+all Prefix Assertions found this way to the VRP found through RPKI
+validation and ensure that it sends the complete set of Protocol Data
+Units (PDUs), excluding duplicates when using the RPKI-Router
+protocol (see Sections 5.6 and 5.7 of <xref target="RFC8210"></xref>).</t>
+</section>
+
+<section anchor="bgpsec-assertions"><name>BGPsec Assertions</name>
+<t>Each RP is locally configured with a (possibly empty) array of BGPsec
+Assertions.  Each BGPsec Assertion MUST contain an AS number, a
+Router SKI, and the router public key.  It is RECOMMENDED that an
+explanatory comment is also included so that it can be shown to users
+of the RP software.</t>
+<t>The above is expressed as a value of the &quot;bgpsecAssertions&quot; member,
+as an array of zero or more objects.  Each object MUST contain one
+each of all of the following members:</t>
+
+<ul>
+<li><t>An &quot;asn&quot; member, whose value is a number.</t>
+</li>
+<li><t>An &quot;SKI&quot; member, whose value is the Base64 encoding without
+trailing '=' (Section 5 of <xref target="RFC4648"></xref>) of the certificate's Subject
+Key Identifier as described in Section 4.8.2 of <xref target="RFC6487"></xref> (This is
+the value of the ASN.1 OCTET STRING without the ASN.1 tag or
+length fields.)</t>
+</li>
+<li><t>A &quot;routerPublicKey&quot; member, whose value is the Base64 encoding
+without trailing '=' (Section 5 of <xref target="RFC4648"></xref>) of the equivalent to
+the subjectPublicKeyInfo value of the router certificate's public
+key, as described in <xref target="RFC8208"></xref>.  This is the full ASN.1 DER
+encoding of the subjectPublicKeyInfo, including the ASN.1 tag and
+length values of the subjectPublicKeyInfo SEQUENCE.</t>
+</li>
+</ul>
+<t>The following example JSON structure represents a &quot;bgpsecAssertions&quot;
+member with one object as described above:</t>
+<figure><name>&quot;bgpsecAssertions&quot; Examples
+</name>
+<sourcecode type="ascii-art">&quot;bgpsecAssertions&quot;: [
+  {
+    &quot;asn&quot;: 64496,
+    &quot;SKI&quot;: &quot;&lt;some base64 SKI&gt;&quot;,
+    &quot;routerPublicKey&quot;: &quot;&lt;some base64 public key&gt;&quot;,
+    &quot;comment&quot;: &quot;My known key for my important ASN&quot;
+  }
+]
+</sourcecode>
+</figure>
+<t>Note that a &quot;bgpsecAssertions&quot; member matches the syntax of the
+Router Key PDU described in Section 5.10 of <xref target="RFC8210"></xref>.  Relying
+Parties MUST add any &quot;bgpsecAssertions&quot; member thus found to the set
+of Router Key PDUs, excluding duplicates, when using the RPKI-Router
+protocol <xref target="RFC8210"></xref>.</t>
+</section>
+</section>
+
+<section anchor="example-of-a-slurm-file-with-filters-and-assertions"><name>Example of a SLURM File with Filters and Assertions</name>
+<t>The following JSON structure represents an example of a SLURM file
+that uses all the elements described in the previous sections:</t>
+<figure><name>Example of Full SLURM File
+</name>
+<sourcecode type="ascii-art">{
+  &quot;slurmVersion&quot;: 1,
+  &quot;validationOutputFilters&quot;: {
+    &quot;prefixFilters&quot;: [
+      {
+        &quot;prefix&quot;: &quot;192.0.2.0/24&quot;,
+        &quot;comment&quot;: &quot;All VRPs encompassed by prefix&quot;
+      },
+      {
+        &quot;asn&quot;: 64496,
+        &quot;comment&quot;: &quot;All VRPs matching ASN&quot;
+      },
+      {
+        &quot;prefix&quot;: &quot;198.51.100.0/24&quot;,
+        &quot;asn&quot;: 64497,
+        &quot;comment&quot;: &quot;All VRPs encompassed by prefix, matching ASN&quot;
+      }
+    ],
+    &quot;bgpsecFilters&quot;: [
+      {
+        &quot;asn&quot;: 64496,
+        &quot;comment&quot;: &quot;All keys for ASN&quot;
+      },
+      {
+        &quot;SKI&quot;: &quot;Zm9v&quot;,
+        &quot;comment&quot;: &quot;Key matching Router SKI&quot;
+      },
+      {
+        &quot;asn&quot;: 64497,
+        &quot;SKI&quot;: &quot;YmFy&quot;,
+        &quot;comment&quot;: &quot;Key for ASN 64497 matching Router SKI&quot;
+      }
+    ]
+  },
+  &quot;locallyAddedAssertions&quot;: {
+    &quot;prefixAssertions&quot;: [
+      {
+        &quot;asn&quot;: 64496,
+        &quot;prefix&quot;: &quot;198.51.100.0/24&quot;,
+        &quot;comment&quot;: &quot;My other important route&quot;
+      },
+      {
+        &quot;asn&quot;: 64496,
+        &quot;prefix&quot;: &quot;2001:DB8::/32&quot;,
+        &quot;maxPrefixLength&quot;: 48,
+        &quot;comment&quot;: &quot;My other important de-aggregated routes&quot;
+      }
+    ],
+    &quot;bgpsecAssertions&quot;: [
+      {
+        &quot;asn&quot;: 64496,
+        &quot;comment&quot; : &quot;My known key for my important ASN&quot;,
+        &quot;SKI&quot;: &quot;&lt;some base64 SKI&gt;&quot;,
+        &quot;routerPublicKey&quot;: &quot;&lt;some base64 public key&gt;&quot;
+      }
+    ]
+  }
+}
+</sourcecode>
+</figure>
+</section>
+</section>
+
+<section anchor="slurm-file-configuration"><name>SLURM File Configuration</name>
+
+<section anchor="slurm-file-atomicity"><name>SLURM File Atomicity</name>
+<t>To ensure local consistency, the effect of SLURM MUST be atomic.
+That is, the output of the RP either MUST be the same as if a SLURM
+file were not used or MUST reflect the entire SLURM configuration.
+For an example of why this is required, consider the case of two
+local routes for the same prefix but different origin ASNs.  Both
+routes are configured with Locally Added Assertions.  If neither
+addition occurs, then both routes could be in the NotFound state
+<xref target="RFC6811"></xref>.  If both additions occur, then both routes would be in the
+Valid state.  However, if one addition occurs and the other does not,
+then one could be Invalid while the other is Valid.</t>
+</section>
+
+<section anchor="multiple-slurm-files"><name>Multiple SLURM Files</name>
+<t>An implementation MAY support the concurrent use of multiple SLURM
+files.  In this case, the resulting inputs to Validation Output
+Filters and Locally Added Assertions are the respective unions of the
+inputs from each file.  The envisioned typical use case for multiple
+files is when the files have distinct scopes.  For instance,
+operators of two distinct networks may resort to one RP system to
+frame routing decisions.  As such, they probably deliver SLURM files
+to this RP independently.  Before an RP configures SLURM files from
+different sources, it MUST make sure there is no internal conflict
+among the INR assertions in these SLURM files.  To do so, the RP
+SHOULD check the entries of each SLURM file with regard to overlaps
+of the INR assertions and report errors to the sources that created
+the SLURM files in question.  The RP gets multiple SLURM files as a
+set, and the whole set MUST be rejected in case of any overlaps among
+the SLURM files.</t>
+<t>If a problem is detected with the INR assertions in these SLURM
+files, the RP MUST NOT use them and SHOULD issue a warning as error
+report in the following cases:</t>
+
+<ol>
+<li><t>There may be conflicting changes to ROA Prefix Assertions if an
+IP address X and distinct SLURM files Y and Z exist such that X
+is contained by any prefix in any &quot;prefixAssertions&quot; or
+&quot;prefixFilters&quot; in file Y and X is contained by any prefix in any
+&quot;prefixAssertions&quot; or &quot;prefixFilters&quot; in file Z.</t>
+</li>
+<li><t>There may be conflicting changes to BGPsec Assertions if an ASN X
+and distinct SLURM files Y and Z exist such that X is used in any
+&quot;bgpsecAssertions&quot; or &quot;bgpsecFilters&quot; in file Y and X is used in
+any &quot;bgpsecAssertions&quot; or &quot;bgpsecFilters&quot; in file Z.</t>
+</li>
+</ol>
+</section>
+</section>
+
+<section anchor="iana-considerations"><name>IANA Considerations</name>
+<t>This document has no IANA actions.</t>
+</section>
+
+<section anchor="security-considerations"><name>Security Considerations</name>
+<t>The mechanisms described in this document provide a network operator
+with additional ways to control use of RPKI data while preserving
+autonomy in address space and ASN management.  These mechanisms are
+only applied locally; they do not influence how other network
+operators interpret RPKI data.  Nonetheless, care should be taken in
+how these mechanisms are employed.  Note that it also is possible to
+use SLURM to (locally) manipulate assertions about non-private INRs,
+e.g., allocated address space that is globally routed.  For example,
+a SLURM file may be used to override RPKI data that a network
+operator believes has been corrupted by an adverse action.  Network
+operators who elect to use SLURM in this fashion should use extreme
+caution.</t>
+<t>The goal of the mechanisms described in this document is to enable an
+RP to create its own view of the RPKI, which is intrinsically a
+security function.  An RP using a SLURM file is trusting the
+assertions made in that file.  Errors in the SLURM file used by an RP
+can undermine the security offered to that RP by the RPKI.  A SLURM
+file could declare as invalid ROAs that would otherwise be valid, and
+vice versa.  As a result, an RP MUST carefully consider the security
+implications of the SLURM file being used, especially if the file is
+provided by a third party.</t>
+<t>Additionally, each RP using SLURM MUST ensure the authenticity and
+integrity of any SLURM file that it uses.  Initially, the SLURM file
+may be preconfigured out of band, but if the RP updates its SLURM
+file over the network, it MUST verify the authenticity and integrity
+of the updated SLURM file.  The mechanism to update the SLURM file to
+guarantee authenticity and integrity is out of the scope of this
+document.</t>
+</section>
+
+<section anchor="acknowledgements"><name>Acknowledgements</name>
+<t>The authors would like to thank David Mandelberg for co-authoring
+<xref target="RFC8416"></xref> which this document replaces. The authors would also like
+to thank Stephen Kent, Richard Hansen, Hui Zou and Chunlin An for their
+contributions to <xref target="RFC8416"></xref>.</t>
+</section>
+
+</middle>
+
+<back>
+<references><name>Normative References</name>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4632.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4648.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.5952.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6487.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6811.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8174.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8205.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8208.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8209.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8210.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8259.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8416.xml"/>
+</references>
+<references><name>Informative References</name>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.1918.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.1930.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4193.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6482.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6491.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6598.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6810.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6996.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8211.xml"/>
+</references>
+
+</back>
+
+</rfc>
