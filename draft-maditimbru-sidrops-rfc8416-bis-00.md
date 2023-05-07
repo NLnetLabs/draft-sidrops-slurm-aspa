@@ -152,21 +152,23 @@ MUST use an incremented value for the "slurmVersion" member.
 
 A SLURM file consists of a single JSON object containing following members:
 
-*  A "slurmVersion" member that MUST be set to 1, encoded as a number
+*  A "slurmVersion" member that MUST be set to 2, encoded as a number
 *  A "validationOutputFilters" member (Section 4.3), whose value is
    an object.  The object MUST contain exactly two members:
   -  A "prefixFilters" member, whose value is described in
        Section 4.3.1.
   -  A "bgpsecFilters" member, whose value is described in
        Section 4.3.2.
+  -  A "aspaFilters" member, whose value is described in
+       Section 4.3.3.
 *  A "locallyAddedAssertions" member (Section 3.4), whose value is an
    object.  The object MUST contain exactly two members:
-
   -  A "prefixAssertions" member, whose value is described in
       Section 4.4.1.
-
   -  A "bgpsecAssertions" member, whose value is described in
       Section 4.4.2.
+  -  A "aspaAssertions" member, whose value is described in
+      Section 4.4.3.
 
 In the envisioned typical use case, an RP uses both Validation Output
 Filters and Locally Added Assertions.  In this case, the resulting
@@ -180,14 +182,16 @@ file that has no filters or assertions:
 !---
 ~~~ ascii-art
 {
-  "slurmVersion": 1,
+  "slurmVersion": 2,
   "validationOutputFilters": {
     "prefixFilters": [],
-    "bgpsecFilters": []
+    "bgpsecFilters": [],
+    "aspaFilters": []
   },
   "locallyAddedAssertions": {
     "prefixAssertions": [],
-    "bgpsecAssertions": []
+    "bgpsecAssertions": [],
+    "aspaAssertions": []
   }
 }
 ~~~
@@ -325,6 +329,238 @@ match with a BGPsec Filter if one of the following cases applies:
     ASN matches the Filter ASN and the Assertion Router SKI matches
     the Filter SKI.
 
+### ASPA Filters
+
+The RP can configure zero or more ASPA Filters.  Each ASPA Filter can
+contain a customer ASN and/or a list of providers ASNs. It is RECOMMENDED
+that an explanatory comment is included with each ASPA Filter so that it
+can be shown to users of the RP software.
+
+The above is expressed as a value of the "aspaFilters" member, as an array
+of zero or more objects. Each object MUST contain at least one of the
+following members:
+
+* A "customerAsid" member, whose value is a number representing an ASPA
+  Customer Autonomous System as described in section 3.2 of
+  [@!I-D.ietf-sidrops-aspa-profile].
+* A "providers" member representing ASPA providers as described in
+  section 3.3 of [@!I-D.ietf-sidrops-aspa-profile] and following the
+  same constraints formulated there. The value of this member is an
+  array of at least one object representing a "providerAS" as defined
+  in section 3.3.1 of [@!I-D.ietf-sidrops-aspa-profile]. These objects
+  are defined as follows:
+  - one "providerAsid" member MUST be present, whose value is a number
+    representing an ASPA ProviderASID as described in section 3.3.1.1 of
+    [@!I-D.ietf-sidrops-aspa-profile].
+  - an optional "afiLimit" member MAY be present, whose value is a string
+    representing the corresponding optional address family limit as
+    described in section 3.3.1.2 of [@!I-D.ietf-sidrops-aspa-profile].
+    The value of this string MUST be either "IPv4" or "IPv6".
+
+
+The following example JSON structure represents a "aspaFilters" member
+with an array of example objects for each use case listed above:
+
+!---
+~~~ ascii-art
+{
+"aspaFilters": [
+  {
+    "customerAsid": 64496,
+    "comment": "Filter out all VAPs that have 64496 as Customer ASID"
+  },
+  {
+    "customerAsid": 64497,
+    "providers": [
+      {
+        "providerAsid": 64498
+      },
+      {
+        "providerAsid": 64499,
+        "afiLimit": "IPv4"
+      },
+      {
+        "providerAsid": 64500,
+        "afiLimit": "IPv6"
+      }
+    ],
+    "comment": "Filter some providers with 64497 as Customer ASID"
+  },
+  {
+    "providers": [
+      {
+        "providerAsid": 65001
+      }
+    ],
+    "comment": "Never accept 65001 as a valid provider."
+  }
+]
+}
+~~~
+!---
+Figure: "aspaFilters" Examples
+
+#### ASPA Unions and Filters
+
+Before applying any ASPA filter an RP MUST first obtain a set of
+validated ASPA objects, extract the Validated ASPA Payload (VAP) for
+each object, and then make unions of all VAPs pertaining to the same
+customer ASN.
+
+A unified VAP for a customer ASN will contain all provider ASN
+authorizations that are contained in any of the source VAPs.
+
+In case a provider AS is present in more than one such VAP and they
+differ in their use of the "afiLimit", then the entries must be merged.
+The "afiLimit" is taken as a positive statement of intent that the
+provider ASN is authorized for the specified address family, rather than
+in itself a denial of use for the other address family. The absence of
+an "afiLimit" indicates that the provider ASN is authorized for both
+address families. All positive statements are combined in merging.
+
+Example using human readable ASPA notation (link to new I-D to follow):
+
+!---
+~~~ ascii-art
+Given VAPs from ASPA Objects:
+  AS65000 => AS65001, AS65002(v4), AS65003(v4), AS65003(v4)
+  AS65000 =>          AS65002(v4), AS65003(v6), AS65003
+
+Unified VAP:
+  AS65000 => AS65001, AS65002(v4), AS65003    , AS65003
+~~~
+!---
+Figure: VAP Customer Only Filter Example
+
+##### Customer AS Only Filter
+
+If an ASPA filter specifies a "customerAsid" only, then the unified VAP
+matching the Customer Autonomous System MUST be removed entirely.
+
+Example using human readable ASPA notation (link to new I-D to follow):
+
+!---
+~~~ ascii-art
+Given VAP:
+  AS65000 => AS65001, AS65002(v4)
+
+Filter:
+  "customerAsid": AS65000
+
+Result:
+  VAP is removed completely
+~~~
+!---
+Figure: VAP Customer Only Filter Example
+
+##### Providers Only Filter
+
+If an ASPA filter specifies a "providers" array only, then matching
+provider AS statements MUST be removed from any unified VAP, i.e.
+regardless of the "customerAsid" used.
+
+If a specified item in the "providers" array does not use the optional
+afiLimit, then any item matching the "providerAsid" MUST be removed
+from VAPs regardless of whether that used an "afiLimit". The intent here
+is to remove the authorization for the given provider ASN for both IPv4
+and IPv6.
+
+If a specified item in the "providers" array uses the optional afiLimit,
+then any item matching the "providerAsid" MUST be removed if it matches
+the "afiLimit". If an item matches the "providerAsid" but it did not use
+an "afiLimit", then the item in the map MUST be modified to use an
+"afiLimit" for the remaining address family. If an item matches the
+"providerAsid" and uses an "afiLimit" that does not match the filter item
+"afiLimit", then the item is kept without modifications.
+
+Example using human readable ASPA notation (link to new I-D to follow):
+
+!---
+~~~ ascii-art
+Given VAPs:
+  AS65000 => AS65001, AS65002, AS65003(v4), AS65004(v6)
+  AS65005 => AS65001, AS65002, AS65003(v4), AS65004(v6)
+
+Filter:
+  "providers": [
+    {
+      "providerAsid": 65001
+    },
+    {
+      "providerAsid": 65002,
+      "afiLimit": "IPv6"
+    },
+    {
+      "providerAsid": 65003,
+      "afiLimit": "IPv6"
+    },
+    {
+      "providerAsid": 65004,
+      "afiLimit": "IPv6"
+    }
+  ]
+
+Result:
+  AS65000 => AS65002(v4), AS65003(v4)
+  AS65005 => AS65002(v4), AS65003(v4)
+~~~
+!---
+Figure: VAP Provider Only Filter Example
+
+##### Customer AS and Providers Filter
+
+If a filter specifies both "customerAsid" and "providers", then the
+provider filter is applied only to the unified VAP that matches the
+Customer Autonomous System.
+
+Example using human readable ASPA notation (link to new I-D to follow):
+!---
+~~~ ascii-art
+Given VAPs:
+  AS65000 => AS65001, AS65002, AS65003(v4), AS65004(v6)
+  AS65005 => AS65001, AS65002, AS65003(v4), AS65004(v6)
+
+Filter:
+  "customerAsid": 65000,
+  "providers": [
+    {
+      "providerAsid": 65001
+    },
+    {
+      "providerAsid": 65002,
+      "afiLimit": "IPv6"
+    },
+    {
+      "providerAsid": 65003,
+      "afiLimit": "IPv6"
+    },
+    {
+      "providerAsid": 65004,
+      "afiLimit": "IPv6"
+    }
+  ]
+
+Result:
+  AS65000 => AS65002(v4), AS65003(v4)
+  AS65005 => AS65001, AS65002, AS65003(v4), AS65004(v6)
+~~~
+!---
+Figure: VAP Customer and Provider Filter Example
+
+##### ASPA Filter Considerations
+
+It should be noted that while this standard allows for fine-grained ASPA
+filters to be specified, no specific way to filter is recommended here.
+In other words, this document aims to give operators set logic oriented
+tools to manipulate the VAPs that would be communicated to their routers,
+but it does not make any assumptions about use cases and best practices.
+
+This design choice is based on the conviction that not all possible use
+cases can be known at this time, and that more deployment experience is
+needed before best practices can be formulated. It is however encouraged
+that this discussion takes place, and that, if needed, a follow document
+that describes use cases and best practices is made in future.
+
 ## Locally Added Assertions
 
 ### ROA Prefix Assertions
@@ -433,6 +669,56 @@ Parties MUST add any "bgpsecAssertions" member thus found to the set
 of Router Key PDUs, excluding duplicates, when using the RPKI-Router
 protocol [@!RFC8210].
 
+### ASPA Assertions
+
+Each RP is locally configured with a (possibly empty) array of ASPA
+assertions. It is RECOMMENDED that an explanatory comment is also included
+so that it can be shown to users of the RP software.
+
+The above is expressed as a value of the "aspaAssertions" member, as an
+array of zero or more objects. The object structure is similar to the
+ASPA filter structure, except that in this case both a "customerAsid"
+member and a "providers" member containing at at least one provider ASN
+MUST be specified.
+
+
+!---
+~~~ ascii-art
+"aspaAssertions": [
+  {
+    "customerAsid": 64496,
+    "providers": [
+      {
+        "providerAsid": 64498
+      },
+      {
+        "providerAsid": 64499,
+        "afiLimit": "IPv4"
+      },
+      {
+        "providerAsid": 64500,
+        "afiLimit": "IPv6"
+      }
+    ],
+    "comment": "Authorize additional providers for customer AS 64496"
+  }
+]
+~~~
+!---
+Figure: "aspaAssertions" Example
+
+Assertions are applied after the RP obtained unified VAPs and applied
+any configured filters. If there is an existing unified and potentially
+partially filtered VAP for the assertion customer ASN, then the
+additional authorizations are merged into this in the same way as VAPs
+are merged (see section 4.3.3.1).
+
+Note that the presence of an ASPA assertion does not imply any filtering.
+If the intent is to replace all existing authorized providers then an
+ASPA filter for the customer ASN only (i.e. without listing providers)
+should be used in addition as this would ensure that the original
+unified VAP is removed before the assertion is applied.
+
 ## Example of a SLURM File with Filters and Assertions
 
 The following JSON structure represents an example of a SLURM file
@@ -472,6 +758,37 @@ that uses all the elements described in the previous sections:
         "SKI": "YmFy",
         "comment": "Key for ASN 64497 matching Router SKI"
       }
+    ],
+    "aspaFilters": [
+      {
+        "customerAsid": 64496,
+        "comment": "Filter out all VAPs for customer AS 64496"
+      },
+      {
+        "customerAsid": 64497,
+        "providers": [
+          {
+            "providerAsid": 64498
+          },
+          {
+            "providerAsid": 64499,
+            "afiLimit": "IPv4"
+          },
+          {
+            "providerAsid": 64500,
+            "afiLimit": "IPv6"
+          }
+        ],
+        "comment": "Filter some providers for customer AS 64497"
+      },
+      {
+        "providers": [
+          {
+            "providerAsid": 65001
+          }
+        ],
+        "comment": "Never accept 65001 as a valid provider."
+      }
     ]
   },
   "locallyAddedAssertions": {
@@ -494,6 +811,25 @@ that uses all the elements described in the previous sections:
         "comment" : "My known key for my important ASN",
         "SKI": "<some base64 SKI>",
         "routerPublicKey": "<some base64 public key>"
+      }
+    ],
+    "aspaAssertions": [
+      {
+        "customerAsid": 64496,
+        "providers": [
+          {
+            "providerAsid": 64498
+          },
+          {
+            "providerAsid": 64499,
+            "afiLimit": "IPv4"
+          },
+          {
+            "providerAsid": 64500,
+            "afiLimit": "IPv6"
+          }
+        ],
+        "comment": "Authorize additional providers for AS 64496"
       }
     ]
   }
