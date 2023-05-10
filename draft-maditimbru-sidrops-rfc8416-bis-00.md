@@ -154,7 +154,7 @@ A SLURM file consists of a single JSON object containing following members:
 
 *  A "slurmVersion" member that MUST be set to 2, encoded as a number
 *  A "validationOutputFilters" member (Section 4.3), whose value is
-   an object.  The object MUST contain exactly two members:
+   an object.  The object MUST contain exactly three members:
   -  A "prefixFilters" member, whose value is described in
        Section 4.3.1.
   -  A "bgpsecFilters" member, whose value is described in
@@ -162,7 +162,7 @@ A SLURM file consists of a single JSON object containing following members:
   -  A "aspaFilters" member, whose value is described in
        Section 4.3.3.
 *  A "locallyAddedAssertions" member (Section 3.4), whose value is an
-   object.  The object MUST contain exactly two members:
+   object.  The object MUST contain exactly three members:
   -  A "prefixAssertions" member, whose value is described in
       Section 4.4.1.
   -  A "bgpsecAssertions" member, whose value is described in
@@ -727,7 +727,7 @@ that uses all the elements described in the previous sections:
 !---
 ~~~ ascii-art
 {
-  "slurmVersion": 1,
+  "slurmVersion": 2,
   "validationOutputFilters": {
     "prefixFilters": [
       {

@@ -130,7 +130,7 @@ MUST use an incremented value for the &quot;slurmVersion&quot; member.</t>
 <ul>
 <li>A &quot;slurmVersion&quot; member that MUST be set to 2, encoded as a number</li>
 <li><t>A &quot;validationOutputFilters&quot; member (Section 4.3), whose value is
-an object.  The object MUST contain exactly two members:</t>
+an object.  The object MUST contain exactly three members:</t>
 
 <ul>
 <li>A &quot;prefixFilters&quot; member, whose value is described in
@@ -141,7 +141,7 @@ Section 4.3.2.</li>
 Section 4.3.3.</li>
 </ul></li>
 <li><t>A &quot;locallyAddedAssertions&quot; member (Section 3.4), whose value is an
-object.  The object MUST contain exactly two members:</t>
+object.  The object MUST contain exactly three members:</t>
 
 <ul>
 <li>A &quot;prefixAssertions&quot; member, whose value is described in
@@ -682,7 +682,7 @@ that uses all the elements described in the previous sections:</t>
 <figure><name>Example of Full SLURM File
 </name>
 <sourcecode type="ascii-art">{
-  &quot;slurmVersion&quot;: 1,
+  &quot;slurmVersion&quot;: 2,
   &quot;validationOutputFilters&quot;: {
     &quot;prefixFilters&quot;: [
       {
