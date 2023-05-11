@@ -7,7 +7,7 @@ obsoletes = [ 8416 ]
 [seriesInfo]
 status = "standard"
 name = "Internet-Draft"
-value = "draft-maditimbru-rfc8416-bis-00"
+value = "draft-maditimbru-rfc8416-bis-01"
 
 [[author]]
 initials="D."
@@ -347,8 +347,9 @@ following members:
     representing the corresponding optional address family limit as
     described in section 3.3.1.2 of [@!I-D.ietf-sidrops-aspa-profile].
     The value of this string MUST be either "IPv4" or "IPv6".
-* An optional "comment" member, whose value is a string.
 
+In addition, each object MAY contain one optional "comment" member,
+whose value is a string.
 
 The following example JSON structure represents a "aspaFilters" member
 with an array of example objects for each use case listed above:
@@ -420,7 +421,7 @@ in itself a denial of use for the other address family. The absence of
 an "afiLimit" indicates that the provider ASN is authorized for both
 address families. All positive statements are combined in merging.
 
-Example using human readable ASPA notation (link to new I-D to follow):
+Example using human readable ASPA notation [@!I-D.timbru-sidrops-aspa-notation]:
 
 !---
 ~~~ ascii-art
@@ -439,7 +440,7 @@ Figure: VAP Customer Only Filter Example
 If an ASPA filter specifies a "customerAsid" only, then the unified VAP
 matching the Customer Autonomous System MUST be removed entirely.
 
-Example using human readable ASPA notation (link to new I-D to follow):
+Example using human readable ASPA notation:
 
 !---
 ~~~ ascii-art
@@ -475,7 +476,7 @@ an "afiLimit", then the item in the map MUST be modified to use an
 "providerAsid" and uses an "afiLimit" that does not match the filter item
 "afiLimit", then the item is kept without modifications.
 
-Example using human readable ASPA notation (link to new I-D to follow):
+Example using human readable ASPA notation:
 
 !---
 ~~~ ascii-art
@@ -515,7 +516,7 @@ If a filter specifies both "customerAsid" and "providers", then the
 provider filter is applied only to the unified VAP that matches the
 Customer Autonomous System.
 
-Example using human readable ASPA notation (link to new I-D to follow):
+Example using human readable ASPA notation:
 !---
 ~~~ ascii-art
 Given VAPs:

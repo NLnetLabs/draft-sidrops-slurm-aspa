@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
-<rfc version="3" ipr="trust200902" docName="draft-maditimbru-rfc8416-bis-00" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" obsoletes="8416" indexInclude="false" consensus="true">
+<rfc version="3" ipr="trust200902" docName="draft-maditimbru-rfc8416-bis-01" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" obsoletes="8416" indexInclude="false" consensus="true">
 
 <front>
-<title abbrev="SLURM v2">Simplified Local Internet Number Resource Management with the RPKI (SLURM)</title><seriesInfo value="draft-maditimbru-rfc8416-bis-00" status="standard" name="Internet-Draft"></seriesInfo>
+<title abbrev="SLURM v2">Simplified Local Internet Number Resource Management with the RPKI (SLURM)</title><seriesInfo value="draft-maditimbru-rfc8416-bis-01" status="standard" name="Internet-Draft"></seriesInfo>
 <author initials="D." surname="Ma" fullname="Di Ma"><organization>ZDNS</organization><address><postal><street></street>
 </postal><email>madi@zdns.cn</email>
 </address></author><author initials="T." surname="Bruijnzeels" fullname="Tim Bruijnzeels"><organization>NLnet Labs</organization><address><postal><street></street>
@@ -329,8 +329,9 @@ representing the corresponding optional address family limit as
 described in section 3.3.1.2 of <xref target="I-D.ietf-sidrops-aspa-profile"></xref>.
 The value of this string MUST be either &quot;IPv4&quot; or &quot;IPv6&quot;.</li>
 </ul></li>
-<li>An optional &quot;comment&quot; member, whose value is a string.</li>
 </ul>
+<t>In addition, each object MAY contain one optional &quot;comment&quot; member,
+whose value is a string.</t>
 <t>The following example JSON structure represents a &quot;aspaFilters&quot; member
 with an array of example objects for each use case listed above:</t>
 <figure><name>&quot;aspaFilters&quot; Examples
@@ -395,7 +396,7 @@ provider ASN is authorized for the specified address family, rather than
 in itself a denial of use for the other address family. The absence of
 an &quot;afiLimit&quot; indicates that the provider ASN is authorized for both
 address families. All positive statements are combined in merging.</t>
-<t>Example using human readable ASPA notation (link to new I-D to follow):</t>
+<t>Example using human readable ASPA notation <xref target="I-D.timbru-sidrops-aspa-notation"></xref>:</t>
 <figure><name>VAP Customer Only Filter Example
 </name>
 <sourcecode type="ascii-art">Given VAPs from ASPA Objects:
@@ -410,7 +411,7 @@ Unified VAP:
 <section anchor="customer-as-only-filter"><name>Customer AS Only Filter</name>
 <t>If an ASPA filter specifies a &quot;customerAsid&quot; only, then the unified VAP
 matching the Customer Autonomous System MUST be removed entirely.</t>
-<t>Example using human readable ASPA notation (link to new I-D to follow):</t>
+<t>Example using human readable ASPA notation:</t>
 <figure><name>VAP Customer Only Filter Example
 </name>
 <sourcecode type="ascii-art">Given VAP:
@@ -441,7 +442,7 @@ an &quot;afiLimit&quot;, then the item in the map MUST be modified to use an
 &quot;afiLimit&quot; for the remaining address family. If an item matches the
 &quot;providerAsid&quot; and uses an &quot;afiLimit&quot; that does not match the filter item
 &quot;afiLimit&quot;, then the item is kept without modifications.</t>
-<t>Example using human readable ASPA notation (link to new I-D to follow):</t>
+<t>Example using human readable ASPA notation:</t>
 <figure><name>VAP Provider Only Filter Example
 </name>
 <sourcecode type="ascii-art">Given VAPs:
@@ -478,7 +479,7 @@ Result:
 <t>If a filter specifies both &quot;customerAsid&quot; and &quot;providers&quot;, then the
 provider filter is applied only to the unified VAP that matches the
 Customer Autonomous System.</t>
-<t>Example using human readable ASPA notation (link to new I-D to follow):</t>
+<t>Example using human readable ASPA notation:</t>
 <figure><name>VAP Customer and Provider Filter Example
 </name>
 <sourcecode type="ascii-art">Given VAPs:
@@ -898,6 +899,7 @@ contributions to <xref target="RFC8416"></xref>.</t>
 <references><name>Normative References</name>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml-ids/reference.I-D.ietf-sidrops-aspa-profile.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml-ids/reference.I-D.ietf-sidrops-aspa-verification.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml-ids/reference.I-D.timbru-sidrops-aspa-notation.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4632.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4648.xml"/>
