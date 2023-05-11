@@ -67,8 +67,9 @@ addresses can issue a Route Origin Authorization (ROA) [@?RFC6482] to
 authorize an Autonomous System (AS) to originate routes for that
 block.  Internet Service Providers (ISPs) can then use the RPKI to
 validate BGP routes.  (Validation of the origin of a route is
-described in [@!RFC6811], and validation of the path of a route is
-described in [@!RFC8205].)
+described in [@!RFC6811], BGPSec validation of the path of a route
+is described in [@!RFC8205], and ASPA based verification of the path
+is decsribed in [@!I-D.ietf-sidrops-aspa-verification].
 
 However, an RPKI Relying Party (RP) may want to override some of the
 information expressed via configured Trust Anchors (TAs) and the
@@ -90,24 +91,14 @@ developed to provide this capability to network operators are hereby
 called "Simplified Local Internet Number Resource Management with the
 RPKI (SLURM)".
 
-SLURM allows an operator to create a local view of the global RPKI by
-generating sets of assertions.  For origin validation [@!RFC6811], an
-assertion is a tuple of {IP prefix, prefix length, maximum length,
-Autonomous System Number (ASN)} as used by the RPKI-Router protocol,
-version 0 [@?RFC6810] and version 1 [@?RFC8210].  For BGPsec [@!RFC8205],
-an assertion is a tuple of {ASN, subject key identifier, router
-public key} as used by version 1 of the RPKI-Router protocol.  (For
-the remainder of this document, these assertions are called "ROA
-Prefix Assertions" and "BGPsec Assertions", respectively.)
-
 # RP with SLURM
 
 SLURM provides a simple way to enable an RP to establish a local,
 customized view of the RPKI, overriding RPKI repository data if
-needed.  To that end, an RP with SLURM filters out (i.e., removes
-from consideration for routing decisions) any assertions in the RPKI
-that are overridden by local ROA Prefix Assertions and BGPsec
-Assertions.
+needed.  To that end, an RP with SLURM can filter out (i.e., removes
+from consideration for routing decisions) ROA Prefix, ASPA and BGPSec
+assertions in the RPKI, and can add local assertions instead or in
+addition to the ones found in the RPKI.
 
 In general, the primary output of an RP is the data it sends to
 routers over the RPKI-Router protocol [@?RFC8210].  The RPKI-Router
@@ -356,6 +347,7 @@ following members:
     representing the corresponding optional address family limit as
     described in section 3.3.1.2 of [@!I-D.ietf-sidrops-aspa-profile].
     The value of this string MUST be either "IPv4" or "IPv6".
+* An optional "comment" member, whose value is a string.
 
 
 The following example JSON structure represents a "aspaFilters" member
@@ -387,12 +379,22 @@ with an array of example objects for each use case listed above:
     "comment": "Filter some providers with 64497 as Customer ASID"
   },
   {
+    "customerAsid": 64501,
     "providers": [
       {
-        "providerAsid": 65001
+        "providerAsid": 64502,
+        "afiLimit": "IPv4"
+      },
+    ],
+    "comment": "Filter provider 64502 for IPv4 for customer 64497"
+  },
+  {
+    "providers": [
+      {
+        "providerAsid": 65003
       }
     ],
-    "comment": "Never accept 65001 as a valid provider."
+    "comment": "Never accept 65003 as a valid provider."
   }
 ]
 }
@@ -646,6 +648,8 @@ each of all of the following members:
    encoding of the subjectPublicKeyInfo, including the ASN.1 tag and
    length values of the subjectPublicKeyInfo SEQUENCE.
 
+*  An optional "comment" member, whose value is a string.
+
 The following example JSON structure represents a "bgpsecAssertions"
 member with one object as described above:
 
@@ -680,7 +684,6 @@ array of zero or more objects. The object structure is similar to the
 ASPA filter structure, except that in this case both a "customerAsid"
 member and a "providers" member containing at at least one provider ASN
 MUST be specified.
-
 
 !---
 ~~~ ascii-art

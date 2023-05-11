@@ -47,8 +47,9 @@ addresses can issue a Route Origin Authorization (ROA) <xref target="RFC6482"></
 authorize an Autonomous System (AS) to originate routes for that
 block.  Internet Service Providers (ISPs) can then use the RPKI to
 validate BGP routes.  (Validation of the origin of a route is
-described in <xref target="RFC6811"></xref>, and validation of the path of a route is
-described in <xref target="RFC8205"></xref>.)</t>
+described in <xref target="RFC6811"></xref>, BGPSec validation of the path of a route
+is described in <xref target="RFC8205"></xref>, and ASPA based verification of the path
+is decsribed in <xref target="I-D.ietf-sidrops-aspa-verification"></xref>.</t>
 <t>However, an RPKI Relying Party (RP) may want to override some of the
 information expressed via configured Trust Anchors (TAs) and the
 certificates downloaded from the RPKI repository system.  For
@@ -68,24 +69,15 @@ the results of such actions have been addressed.  The mechanisms
 developed to provide this capability to network operators are hereby
 called &quot;Simplified Local Internet Number Resource Management with the
 RPKI (SLURM)&quot;.</t>
-<t>SLURM allows an operator to create a local view of the global RPKI by
-generating sets of assertions.  For origin validation <xref target="RFC6811"></xref>, an
-assertion is a tuple of {IP prefix, prefix length, maximum length,
-Autonomous System Number (ASN)} as used by the RPKI-Router protocol,
-version 0 <xref target="RFC6810"></xref> and version 1 <xref target="RFC8210"></xref>.  For BGPsec <xref target="RFC8205"></xref>,
-an assertion is a tuple of {ASN, subject key identifier, router
-public key} as used by version 1 of the RPKI-Router protocol.  (For
-the remainder of this document, these assertions are called &quot;ROA
-Prefix Assertions&quot; and &quot;BGPsec Assertions&quot;, respectively.)</t>
 </section>
 
 <section anchor="rp-with-slurm"><name>RP with SLURM</name>
 <t>SLURM provides a simple way to enable an RP to establish a local,
 customized view of the RPKI, overriding RPKI repository data if
-needed.  To that end, an RP with SLURM filters out (i.e., removes
-from consideration for routing decisions) any assertions in the RPKI
-that are overridden by local ROA Prefix Assertions and BGPsec
-Assertions.</t>
+needed.  To that end, an RP with SLURM can filter out (i.e., removes
+from consideration for routing decisions) ROA Prefix, ASPA and BGPSec
+assertions in the RPKI, and can add local assertions instead or in
+addition to the ones found in the RPKI.</t>
 <t>In general, the primary output of an RP is the data it sends to
 routers over the RPKI-Router protocol <xref target="RFC8210"></xref>.  The RPKI-Router
 protocol enables routers to query an RP for all assertions it knows
@@ -337,6 +329,7 @@ representing the corresponding optional address family limit as
 described in section 3.3.1.2 of <xref target="I-D.ietf-sidrops-aspa-profile"></xref>.
 The value of this string MUST be either &quot;IPv4&quot; or &quot;IPv6&quot;.</li>
 </ul></li>
+<li>An optional &quot;comment&quot; member, whose value is a string.</li>
 </ul>
 <t>The following example JSON structure represents a &quot;aspaFilters&quot; member
 with an array of example objects for each use case listed above:</t>
@@ -366,12 +359,22 @@ with an array of example objects for each use case listed above:</t>
     &quot;comment&quot;: &quot;Filter some providers with 64497 as Customer ASID&quot;
   },
   {
+    &quot;customerAsid&quot;: 64501,
     &quot;providers&quot;: [
       {
-        &quot;providerAsid&quot;: 65001
+        &quot;providerAsid&quot;: 64502,
+        &quot;afiLimit&quot;: &quot;IPv4&quot;
+      },
+    ],
+    &quot;comment&quot;: &quot;Filter provider 64502 for IPv4 for customer 64497&quot;
+  },
+  {
+    &quot;providers&quot;: [
+      {
+        &quot;providerAsid&quot;: 65003
       }
     ],
-    &quot;comment&quot;: &quot;Never accept 65001 as a valid provider.&quot;
+    &quot;comment&quot;: &quot;Never accept 65003 as a valid provider.&quot;
   }
 ]
 }
@@ -608,6 +611,8 @@ the subjectPublicKeyInfo value of the router certificate's public
 key, as described in <xref target="RFC8208"></xref>.  This is the full ASN.1 DER
 encoding of the subjectPublicKeyInfo, including the ASN.1 tag and
 length values of the subjectPublicKeyInfo SEQUENCE.</t>
+</li>
+<li><t>An optional &quot;comment&quot; member, whose value is a string.</t>
 </li>
 </ul>
 <t>The following example JSON structure represents a &quot;bgpsecAssertions&quot;
@@ -892,6 +897,7 @@ contributions to <xref target="RFC8416"></xref>.</t>
 <back>
 <references><name>Normative References</name>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml-ids/reference.I-D.ietf-sidrops-aspa-profile.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml-ids/reference.I-D.ietf-sidrops-aspa-verification.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4632.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4648.xml"/>
@@ -913,7 +919,6 @@ contributions to <xref target="RFC8416"></xref>.</t>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6482.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6491.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6598.xml"/>
-<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6810.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6996.xml"/>
 <xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8211.xml"/>
 </references>
