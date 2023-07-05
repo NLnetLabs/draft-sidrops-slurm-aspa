@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
-<rfc version="3" ipr="trust200902" docName="draft-maditimbru-rfc8416-bis-01" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" obsoletes="8416" indexInclude="false" consensus="true">
+<rfc version="3" ipr="trust200902" docName="draft-maditimbru-rfc8416-bis-02" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" obsoletes="8416" indexInclude="false" consensus="true">
 
 <front>
-<title abbrev="SLURM v2">Simplified Local Internet Number Resource Management with the RPKI (SLURM)</title><seriesInfo value="draft-maditimbru-rfc8416-bis-01" status="standard" name="Internet-Draft"></seriesInfo>
+<title abbrev="SLURM v2">Simplified Local Internet Number Resource Management with the RPKI (SLURM)</title><seriesInfo value="draft-maditimbru-rfc8416-bis-02" status="standard" name="Internet-Draft"></seriesInfo>
 <author initials="D." surname="Ma" fullname="Di Ma"><organization>ZDNS</organization><address><postal><street></street>
 </postal><email>madi@zdns.cn</email>
 </address></author><author initials="T." surname="Bruijnzeels" fullname="Tim Bruijnzeels"><organization>NLnet Labs</organization><address><postal><street></street>
@@ -313,22 +313,9 @@ following members:</t>
 <li>A &quot;customerAsid&quot; member, whose value is a number representing an ASPA
 Customer Autonomous System as described in section 3.2 of
 <xref target="I-D.ietf-sidrops-aspa-profile"></xref>.</li>
-<li><t>A &quot;providers&quot; member representing ASPA providers as described in
-section 3.3 of <xref target="I-D.ietf-sidrops-aspa-profile"></xref> and following the
-same constraints formulated there. The value of this member is an
-array of at least one object representing a &quot;providerAS&quot; as defined
-in section 3.3.1 of <xref target="I-D.ietf-sidrops-aspa-profile"></xref>. These objects
-are defined as follows:</t>
-
-<ul>
-<li>one &quot;providerAsid&quot; member MUST be present, whose value is a number
-representing an ASPA ProviderASID as described in section 3.3.1.1 of
+<li>A &quot;providers&quot; member, whose value is an array of 1 or more numbers
+representing ASPA provider ASes as described in section 3.3 of
 <xref target="I-D.ietf-sidrops-aspa-profile"></xref>.</li>
-<li>an optional &quot;afiLimit&quot; member MAY be present, whose value is a string
-representing the corresponding optional address family limit as
-described in section 3.3.1.2 of <xref target="I-D.ietf-sidrops-aspa-profile"></xref>.
-The value of this string MUST be either &quot;IPv4&quot; or &quot;IPv6&quot;.</li>
-</ul></li>
 </ul>
 <t>In addition, each object MAY contain one optional &quot;comment&quot; member,
 whose value is a string.</t>
@@ -344,37 +331,11 @@ with an array of example objects for each use case listed above:</t>
   },
   {
     &quot;customerAsid&quot;: 64497,
-    &quot;providers&quot;: [
-      {
-        &quot;providerAsid&quot;: 64498
-      },
-      {
-        &quot;providerAsid&quot;: 64499,
-        &quot;afiLimit&quot;: &quot;IPv4&quot;
-      },
-      {
-        &quot;providerAsid&quot;: 64500,
-        &quot;afiLimit&quot;: &quot;IPv6&quot;
-      }
-    ],
+    &quot;providers&quot;: [ 64498, 64499],
     &quot;comment&quot;: &quot;Filter some providers with 64497 as Customer ASID&quot;
   },
   {
-    &quot;customerAsid&quot;: 64501,
-    &quot;providers&quot;: [
-      {
-        &quot;providerAsid&quot;: 64502,
-        &quot;afiLimit&quot;: &quot;IPv4&quot;
-      },
-    ],
-    &quot;comment&quot;: &quot;Filter provider 64502 for IPv4 for customer 64497&quot;
-  },
-  {
-    &quot;providers&quot;: [
-      {
-        &quot;providerAsid&quot;: 65003
-      }
-    ],
+    &quot;providers&quot;: [ 65003 ],
     &quot;comment&quot;: &quot;Never accept 65003 as a valid provider.&quot;
   }
 ]
@@ -386,25 +347,17 @@ with an array of example objects for each use case listed above:</t>
 <t>Before applying any ASPA filter an RP MUST first obtain a set of
 validated ASPA objects, extract the Validated ASPA Payload (VAP) for
 each object, and then make unions of all VAPs pertaining to the same
-customer ASN.</t>
-<t>A unified VAP for a customer ASN will contain all provider ASN
-authorizations that are contained in any of the source VAPs.</t>
-<t>In case a provider AS is present in more than one such VAP and they
-differ in their use of the &quot;afiLimit&quot;, then the entries must be merged.
-The &quot;afiLimit&quot; is taken as a positive statement of intent that the
-provider ASN is authorized for the specified address family, rather than
-in itself a denial of use for the other address family. The absence of
-an &quot;afiLimit&quot; indicates that the provider ASN is authorized for both
-address families. All positive statements are combined in merging.</t>
+customer ASN. A unified VAP for a customer ASN will contain the union
+of all provider ASes that are contained in any of the source VAPs.</t>
 <t>Example using human readable ASPA notation <xref target="I-D.timbru-sidrops-aspa-notation"></xref>:</t>
 <figure><name>VAP Customer Only Filter Example
 </name>
 <sourcecode type="ascii-art">Given VAPs from ASPA Objects:
-  AS65000 =&gt; AS65001, AS65002(v4), AS65003(v4), AS65003(v4)
-  AS65000 =&gt;          AS65002(v4), AS65003(v6), AS65003
+  AS65000 =&gt; AS65001, AS65002, AS65003,
+  AS65000 =&gt;          AS65002, AS65003, AS65004
 
 Unified VAP:
-  AS65000 =&gt; AS65001, AS65002(v4), AS65003    , AS65003
+  AS65000 =&gt; AS65001, AS65002, AS65003, AS65004
 </sourcecode>
 </figure>
 
@@ -415,7 +368,7 @@ matching the Customer Autonomous System MUST be removed entirely.</t>
 <figure><name>VAP Customer Only Filter Example
 </name>
 <sourcecode type="ascii-art">Given VAP:
-  AS65000 =&gt; AS65001, AS65002(v4)
+  AS65000 =&gt; AS65001, AS65002
 
 Filter:
   &quot;customerAsid&quot;: AS65000
@@ -430,47 +383,19 @@ Result:
 <t>If an ASPA filter specifies a &quot;providers&quot; array only, then matching
 provider AS statements MUST be removed from any unified VAP, i.e.
 regardless of the &quot;customerAsid&quot; used.</t>
-<t>If a specified item in the &quot;providers&quot; array does not use the optional
-afiLimit, then any item matching the &quot;providerAsid&quot; MUST be removed
-from VAPs regardless of whether that used an &quot;afiLimit&quot;. The intent here
-is to remove the authorization for the given provider ASN for both IPv4
-and IPv6.</t>
-<t>If a specified item in the &quot;providers&quot; array uses the optional afiLimit,
-then any item matching the &quot;providerAsid&quot; MUST be removed if it matches
-the &quot;afiLimit&quot;. If an item matches the &quot;providerAsid&quot; but it did not use
-an &quot;afiLimit&quot;, then the item in the map MUST be modified to use an
-&quot;afiLimit&quot; for the remaining address family. If an item matches the
-&quot;providerAsid&quot; and uses an &quot;afiLimit&quot; that does not match the filter item
-&quot;afiLimit&quot;, then the item is kept without modifications.</t>
 <t>Example using human readable ASPA notation:</t>
 <figure><name>VAP Provider Only Filter Example
 </name>
 <sourcecode type="ascii-art">Given VAPs:
-  AS65000 =&gt; AS65001, AS65002, AS65003(v4), AS65004(v6)
-  AS65005 =&gt; AS65001, AS65002, AS65003(v4), AS65004(v6)
+  AS65000 =&gt; AS65001, AS65002, AS65003, AS65004
+  AS65005 =&gt; AS65001, AS65002, AS65003, AS65004
 
 Filter:
-  &quot;providers&quot;: [
-    {
-      &quot;providerAsid&quot;: 65001
-    },
-    {
-      &quot;providerAsid&quot;: 65002,
-      &quot;afiLimit&quot;: &quot;IPv6&quot;
-    },
-    {
-      &quot;providerAsid&quot;: 65003,
-      &quot;afiLimit&quot;: &quot;IPv6&quot;
-    },
-    {
-      &quot;providerAsid&quot;: 65004,
-      &quot;afiLimit&quot;: &quot;IPv6&quot;
-    }
-  ]
+  &quot;providers&quot;: [ 65001, 65002, 65003]
 
 Result:
-  AS65000 =&gt; AS65002(v4), AS65003(v4)
-  AS65005 =&gt; AS65002(v4), AS65003(v4)
+  AS65000 =&gt; AS65001, AS65004
+  AS65005 =&gt; AS65001, AS65004
 </sourcecode>
 </figure>
 </section>
@@ -483,32 +408,16 @@ Customer Autonomous System.</t>
 <figure><name>VAP Customer and Provider Filter Example
 </name>
 <sourcecode type="ascii-art">Given VAPs:
-  AS65000 =&gt; AS65001, AS65002, AS65003(v4), AS65004(v6)
-  AS65005 =&gt; AS65001, AS65002, AS65003(v4), AS65004(v6)
+  AS65000 =&gt; AS65001, AS65002, AS65003, AS65004
+  AS65005 =&gt; AS65001, AS65002, AS65003, AS65004
 
 Filter:
   &quot;customerAsid&quot;: 65000,
-  &quot;providers&quot;: [
-    {
-      &quot;providerAsid&quot;: 65001
-    },
-    {
-      &quot;providerAsid&quot;: 65002,
-      &quot;afiLimit&quot;: &quot;IPv6&quot;
-    },
-    {
-      &quot;providerAsid&quot;: 65003,
-      &quot;afiLimit&quot;: &quot;IPv6&quot;
-    },
-    {
-      &quot;providerAsid&quot;: 65004,
-      &quot;afiLimit&quot;: &quot;IPv6&quot;
-    }
-  ]
+  &quot;providers&quot;: [ 65002, 65003, 65004 ]
 
 Result:
-  AS65000 =&gt; AS65002(v4), AS65003(v4)
-  AS65005 =&gt; AS65001, AS65002, AS65003(v4), AS65004(v6)
+  AS65000 =&gt; AS65001
+  AS65005 =&gt; AS65001, AS65002, AS65003, AS65004
 </sourcecode>
 </figure>
 </section>
@@ -522,7 +431,7 @@ but it does not make any assumptions about use cases and best practices.</t>
 <t>This design choice is based on the conviction that not all possible use
 cases can be known at this time, and that more deployment experience is
 needed before best practices can be formulated. It is however encouraged
-that this discussion takes place, and that, if needed, a follow document
+that this discussion takes place, and that, if needed, a follow-up document
 that describes use cases and best practices is made in future.</t>
 </section>
 </section>
@@ -651,19 +560,7 @@ MUST be specified.</t>
 <sourcecode type="ascii-art">&quot;aspaAssertions&quot;: [
   {
     &quot;customerAsid&quot;: 64496,
-    &quot;providers&quot;: [
-      {
-        &quot;providerAsid&quot;: 64498
-      },
-      {
-        &quot;providerAsid&quot;: 64499,
-        &quot;afiLimit&quot;: &quot;IPv4&quot;
-      },
-      {
-        &quot;providerAsid&quot;: 64500,
-        &quot;afiLimit&quot;: &quot;IPv6&quot;
-      }
-    ],
+    &quot;providers&quot;: [ 64498, 64499, 64500 ],
     &quot;comment&quot;: &quot;Authorize additional providers for customer AS 64496&quot;
   }
 ]
@@ -727,27 +624,11 @@ that uses all the elements described in the previous sections:</t>
       },
       {
         &quot;customerAsid&quot;: 64497,
-        &quot;providers&quot;: [
-          {
-            &quot;providerAsid&quot;: 64498
-          },
-          {
-            &quot;providerAsid&quot;: 64499,
-            &quot;afiLimit&quot;: &quot;IPv4&quot;
-          },
-          {
-            &quot;providerAsid&quot;: 64500,
-            &quot;afiLimit&quot;: &quot;IPv6&quot;
-          }
-        ],
+        &quot;providers&quot;: [ 64498, 64499, 64500 ],
         &quot;comment&quot;: &quot;Filter some providers for customer AS 64497&quot;
       },
       {
-        &quot;providers&quot;: [
-          {
-            &quot;providerAsid&quot;: 65001
-          }
-        ],
+        &quot;providers&quot;: [ 65001 ],
         &quot;comment&quot;: &quot;Never accept 65001 as a valid provider.&quot;
       }
     ]
@@ -777,19 +658,7 @@ that uses all the elements described in the previous sections:</t>
     &quot;aspaAssertions&quot;: [
       {
         &quot;customerAsid&quot;: 64496,
-        &quot;providers&quot;: [
-          {
-            &quot;providerAsid&quot;: 64498
-          },
-          {
-            &quot;providerAsid&quot;: 64499,
-            &quot;afiLimit&quot;: &quot;IPv4&quot;
-          },
-          {
-            &quot;providerAsid&quot;: 64500,
-            &quot;afiLimit&quot;: &quot;IPv6&quot;
-          }
-        ],
+        &quot;providers&quot;: [ 64498, 64499, 64500 ],
         &quot;comment&quot;: &quot;Authorize additional providers for AS 64496&quot;
       }
     ]

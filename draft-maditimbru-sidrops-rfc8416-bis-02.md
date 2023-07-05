@@ -7,7 +7,7 @@ obsoletes = [ 8416 ]
 [seriesInfo]
 status = "standard"
 name = "Internet-Draft"
-value = "draft-maditimbru-rfc8416-bis-01"
+value = "draft-maditimbru-rfc8416-bis-02"
 
 [[author]]
 initials="D."
@@ -334,19 +334,9 @@ following members:
 * A "customerAsid" member, whose value is a number representing an ASPA
   Customer Autonomous System as described in section 3.2 of
   [@!I-D.ietf-sidrops-aspa-profile].
-* A "providers" member representing ASPA providers as described in
-  section 3.3 of [@!I-D.ietf-sidrops-aspa-profile] and following the
-  same constraints formulated there. The value of this member is an
-  array of at least one object representing a "providerAS" as defined
-  in section 3.3.1 of [@!I-D.ietf-sidrops-aspa-profile]. These objects
-  are defined as follows:
-  - one "providerAsid" member MUST be present, whose value is a number
-    representing an ASPA ProviderASID as described in section 3.3.1.1 of
-    [@!I-D.ietf-sidrops-aspa-profile].
-  - an optional "afiLimit" member MAY be present, whose value is a string
-    representing the corresponding optional address family limit as
-    described in section 3.3.1.2 of [@!I-D.ietf-sidrops-aspa-profile].
-    The value of this string MUST be either "IPv4" or "IPv6".
+* A "providers" member, whose value is an array of 1 or more numbers
+  representing ASPA provider ASes as described in section 3.3 of
+  [@!I-D.ietf-sidrops-aspa-profile].
 
 In addition, each object MAY contain one optional "comment" member,
 whose value is a string.
@@ -364,37 +354,11 @@ with an array of example objects for each use case listed above:
   },
   {
     "customerAsid": 64497,
-    "providers": [
-      {
-        "providerAsid": 64498
-      },
-      {
-        "providerAsid": 64499,
-        "afiLimit": "IPv4"
-      },
-      {
-        "providerAsid": 64500,
-        "afiLimit": "IPv6"
-      }
-    ],
+    "providers": [ 64498, 64499],
     "comment": "Filter some providers with 64497 as Customer ASID"
   },
   {
-    "customerAsid": 64501,
-    "providers": [
-      {
-        "providerAsid": 64502,
-        "afiLimit": "IPv4"
-      },
-    ],
-    "comment": "Filter provider 64502 for IPv4 for customer 64497"
-  },
-  {
-    "providers": [
-      {
-        "providerAsid": 65003
-      }
-    ],
+    "providers": [ 65003 ],
     "comment": "Never accept 65003 as a valid provider."
   }
 ]
@@ -408,29 +372,19 @@ Figure: "aspaFilters" Examples
 Before applying any ASPA filter an RP MUST first obtain a set of
 validated ASPA objects, extract the Validated ASPA Payload (VAP) for
 each object, and then make unions of all VAPs pertaining to the same
-customer ASN.
-
-A unified VAP for a customer ASN will contain all provider ASN
-authorizations that are contained in any of the source VAPs.
-
-In case a provider AS is present in more than one such VAP and they
-differ in their use of the "afiLimit", then the entries must be merged.
-The "afiLimit" is taken as a positive statement of intent that the
-provider ASN is authorized for the specified address family, rather than
-in itself a denial of use for the other address family. The absence of
-an "afiLimit" indicates that the provider ASN is authorized for both
-address families. All positive statements are combined in merging.
+customer ASN. A unified VAP for a customer ASN will contain the union
+of all provider ASes that are contained in any of the source VAPs.
 
 Example using human readable ASPA notation [@!I-D.timbru-sidrops-aspa-notation]:
 
 !---
 ~~~ ascii-art
 Given VAPs from ASPA Objects:
-  AS65000 => AS65001, AS65002(v4), AS65003(v4), AS65003(v4)
-  AS65000 =>          AS65002(v4), AS65003(v6), AS65003
+  AS65000 => AS65001, AS65002, AS65003,
+  AS65000 =>          AS65002, AS65003, AS65004
 
 Unified VAP:
-  AS65000 => AS65001, AS65002(v4), AS65003    , AS65003
+  AS65000 => AS65001, AS65002, AS65003, AS65004
 ~~~
 !---
 Figure: VAP Customer Only Filter Example
@@ -445,7 +399,7 @@ Example using human readable ASPA notation:
 !---
 ~~~ ascii-art
 Given VAP:
-  AS65000 => AS65001, AS65002(v4)
+  AS65000 => AS65001, AS65002
 
 Filter:
   "customerAsid": AS65000
@@ -462,50 +416,20 @@ If an ASPA filter specifies a "providers" array only, then matching
 provider AS statements MUST be removed from any unified VAP, i.e.
 regardless of the "customerAsid" used.
 
-If a specified item in the "providers" array does not use the optional
-afiLimit, then any item matching the "providerAsid" MUST be removed
-from VAPs regardless of whether that used an "afiLimit". The intent here
-is to remove the authorization for the given provider ASN for both IPv4
-and IPv6.
-
-If a specified item in the "providers" array uses the optional afiLimit,
-then any item matching the "providerAsid" MUST be removed if it matches
-the "afiLimit". If an item matches the "providerAsid" but it did not use
-an "afiLimit", then the item in the map MUST be modified to use an
-"afiLimit" for the remaining address family. If an item matches the
-"providerAsid" and uses an "afiLimit" that does not match the filter item
-"afiLimit", then the item is kept without modifications.
-
 Example using human readable ASPA notation:
 
 !---
 ~~~ ascii-art
 Given VAPs:
-  AS65000 => AS65001, AS65002, AS65003(v4), AS65004(v6)
-  AS65005 => AS65001, AS65002, AS65003(v4), AS65004(v6)
+  AS65000 => AS65001, AS65002, AS65003, AS65004
+  AS65005 => AS65001, AS65002, AS65003, AS65004
 
 Filter:
-  "providers": [
-    {
-      "providerAsid": 65001
-    },
-    {
-      "providerAsid": 65002,
-      "afiLimit": "IPv6"
-    },
-    {
-      "providerAsid": 65003,
-      "afiLimit": "IPv6"
-    },
-    {
-      "providerAsid": 65004,
-      "afiLimit": "IPv6"
-    }
-  ]
+  "providers": [ 65001, 65002, 65003]
 
 Result:
-  AS65000 => AS65002(v4), AS65003(v4)
-  AS65005 => AS65002(v4), AS65003(v4)
+  AS65000 => AS65001, AS65004
+  AS65005 => AS65001, AS65004
 ~~~
 !---
 Figure: VAP Provider Only Filter Example
@@ -520,32 +444,16 @@ Example using human readable ASPA notation:
 !---
 ~~~ ascii-art
 Given VAPs:
-  AS65000 => AS65001, AS65002, AS65003(v4), AS65004(v6)
-  AS65005 => AS65001, AS65002, AS65003(v4), AS65004(v6)
+  AS65000 => AS65001, AS65002, AS65003, AS65004
+  AS65005 => AS65001, AS65002, AS65003, AS65004
 
 Filter:
   "customerAsid": 65000,
-  "providers": [
-    {
-      "providerAsid": 65001
-    },
-    {
-      "providerAsid": 65002,
-      "afiLimit": "IPv6"
-    },
-    {
-      "providerAsid": 65003,
-      "afiLimit": "IPv6"
-    },
-    {
-      "providerAsid": 65004,
-      "afiLimit": "IPv6"
-    }
-  ]
+  "providers": [ 65002, 65003, 65004 ]
 
 Result:
-  AS65000 => AS65002(v4), AS65003(v4)
-  AS65005 => AS65001, AS65002, AS65003(v4), AS65004(v6)
+  AS65000 => AS65001
+  AS65005 => AS65001, AS65002, AS65003, AS65004
 ~~~
 !---
 Figure: VAP Customer and Provider Filter Example
@@ -561,7 +469,7 @@ but it does not make any assumptions about use cases and best practices.
 This design choice is based on the conviction that not all possible use
 cases can be known at this time, and that more deployment experience is
 needed before best practices can be formulated. It is however encouraged
-that this discussion takes place, and that, if needed, a follow document
+that this discussion takes place, and that, if needed, a follow-up document
 that describes use cases and best practices is made in future.
 
 ## Locally Added Assertions
@@ -691,19 +599,7 @@ MUST be specified.
 "aspaAssertions": [
   {
     "customerAsid": 64496,
-    "providers": [
-      {
-        "providerAsid": 64498
-      },
-      {
-        "providerAsid": 64499,
-        "afiLimit": "IPv4"
-      },
-      {
-        "providerAsid": 64500,
-        "afiLimit": "IPv6"
-      }
-    ],
+    "providers": [ 64498, 64499, 64500 ],
     "comment": "Authorize additional providers for customer AS 64496"
   }
 ]
@@ -770,27 +666,11 @@ that uses all the elements described in the previous sections:
       },
       {
         "customerAsid": 64497,
-        "providers": [
-          {
-            "providerAsid": 64498
-          },
-          {
-            "providerAsid": 64499,
-            "afiLimit": "IPv4"
-          },
-          {
-            "providerAsid": 64500,
-            "afiLimit": "IPv6"
-          }
-        ],
+        "providers": [ 64498, 64499, 64500 ],
         "comment": "Filter some providers for customer AS 64497"
       },
       {
-        "providers": [
-          {
-            "providerAsid": 65001
-          }
-        ],
+        "providers": [ 65001 ],
         "comment": "Never accept 65001 as a valid provider."
       }
     ]
@@ -820,19 +700,7 @@ that uses all the elements described in the previous sections:
     "aspaAssertions": [
       {
         "customerAsid": 64496,
-        "providers": [
-          {
-            "providerAsid": 64498
-          },
-          {
-            "providerAsid": 64499,
-            "afiLimit": "IPv4"
-          },
-          {
-            "providerAsid": 64500,
-            "afiLimit": "IPv6"
-          }
-        ],
+        "providers": [ 64498, 64499, 64500 ],
         "comment": "Authorize additional providers for AS 64496"
       }
     ]
