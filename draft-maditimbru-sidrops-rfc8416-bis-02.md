@@ -7,7 +7,7 @@ obsoletes = [ 8416 ]
 [seriesInfo]
 status = "standard"
 name = "Internet-Draft"
-value = "draft-maditimbru-rfc8416-bis-00"
+value = "draft-maditimbru-rfc8416-bis-02"
 
 [[author]]
 initials="D."
@@ -67,8 +67,9 @@ addresses can issue a Route Origin Authorization (ROA) [@?RFC6482] to
 authorize an Autonomous System (AS) to originate routes for that
 block.  Internet Service Providers (ISPs) can then use the RPKI to
 validate BGP routes.  (Validation of the origin of a route is
-described in [@!RFC6811], and validation of the path of a route is
-described in [@!RFC8205].)
+described in [@!RFC6811], BGPSec validation of the path of a route
+is described in [@!RFC8205], and ASPA based verification of the path
+is decsribed in [@!I-D.ietf-sidrops-aspa-verification].
 
 However, an RPKI Relying Party (RP) may want to override some of the
 information expressed via configured Trust Anchors (TAs) and the
@@ -90,24 +91,14 @@ developed to provide this capability to network operators are hereby
 called "Simplified Local Internet Number Resource Management with the
 RPKI (SLURM)".
 
-SLURM allows an operator to create a local view of the global RPKI by
-generating sets of assertions.  For origin validation [@!RFC6811], an
-assertion is a tuple of {IP prefix, prefix length, maximum length,
-Autonomous System Number (ASN)} as used by the RPKI-Router protocol,
-version 0 [@?RFC6810] and version 1 [@?RFC8210].  For BGPsec [@!RFC8205],
-an assertion is a tuple of {ASN, subject key identifier, router
-public key} as used by version 1 of the RPKI-Router protocol.  (For
-the remainder of this document, these assertions are called "ROA
-Prefix Assertions" and "BGPsec Assertions", respectively.)
-
 # RP with SLURM
 
 SLURM provides a simple way to enable an RP to establish a local,
 customized view of the RPKI, overriding RPKI repository data if
-needed.  To that end, an RP with SLURM filters out (i.e., removes
-from consideration for routing decisions) any assertions in the RPKI
-that are overridden by local ROA Prefix Assertions and BGPsec
-Assertions.
+needed.  To that end, an RP with SLURM can filter out (i.e., removes
+from consideration for routing decisions) ROA Prefix, ASPA and BGPSec
+assertions in the RPKI, and can add local assertions instead or in
+addition to the ones found in the RPKI.
 
 In general, the primary output of an RP is the data it sends to
 routers over the RPKI-Router protocol [@?RFC8210].  The RPKI-Router
@@ -152,21 +143,23 @@ MUST use an incremented value for the "slurmVersion" member.
 
 A SLURM file consists of a single JSON object containing following members:
 
-*  A "slurmVersion" member that MUST be set to 1, encoded as a number
+*  A "slurmVersion" member that MUST be set to 2, encoded as a number
 *  A "validationOutputFilters" member (Section 4.3), whose value is
-   an object.  The object MUST contain exactly two members:
+   an object.  The object MUST contain exactly three members:
   -  A "prefixFilters" member, whose value is described in
        Section 4.3.1.
   -  A "bgpsecFilters" member, whose value is described in
        Section 4.3.2.
+  -  A "aspaFilters" member, whose value is described in
+       Section 4.3.3.
 *  A "locallyAddedAssertions" member (Section 3.4), whose value is an
-   object.  The object MUST contain exactly two members:
-
+   object.  The object MUST contain exactly three members:
   -  A "prefixAssertions" member, whose value is described in
       Section 4.4.1.
-
   -  A "bgpsecAssertions" member, whose value is described in
       Section 4.4.2.
+  -  A "aspaAssertions" member, whose value is described in
+      Section 4.4.3.
 
 In the envisioned typical use case, an RP uses both Validation Output
 Filters and Locally Added Assertions.  In this case, the resulting
@@ -180,14 +173,16 @@ file that has no filters or assertions:
 !---
 ~~~ ascii-art
 {
-  "slurmVersion": 1,
+  "slurmVersion": 2,
   "validationOutputFilters": {
     "prefixFilters": [],
-    "bgpsecFilters": []
+    "bgpsecFilters": [],
+    "aspaFilters": []
   },
   "locallyAddedAssertions": {
     "prefixAssertions": [],
-    "bgpsecAssertions": []
+    "bgpsecAssertions": [],
+    "aspaAssertions": []
   }
 }
 ~~~
@@ -325,6 +320,158 @@ match with a BGPsec Filter if one of the following cases applies:
     ASN matches the Filter ASN and the Assertion Router SKI matches
     the Filter SKI.
 
+### ASPA Filters
+
+The RP can configure zero or more ASPA Filters.  Each ASPA Filter can
+contain a customer ASN and/or a list of providers ASNs. It is RECOMMENDED
+that an explanatory comment is included with each ASPA Filter so that it
+can be shown to users of the RP software.
+
+The above is expressed as a value of the "aspaFilters" member, as an array
+of zero or more objects. Each object MUST contain at least one of the
+following members:
+
+* A "customerAsid" member, whose value is a number representing an ASPA
+  Customer Autonomous System as described in section 3.2 of
+  [@!I-D.ietf-sidrops-aspa-profile].
+* A "providers" member, whose value is an array of 1 or more numbers
+  representing ASPA provider ASes as described in section 3.3 of
+  [@!I-D.ietf-sidrops-aspa-profile].
+
+In addition, each object MAY contain one optional "comment" member,
+whose value is a string.
+
+The following example JSON structure represents a "aspaFilters" member
+with an array of example objects for each use case listed above:
+
+!---
+~~~ ascii-art
+{
+"aspaFilters": [
+  {
+    "customerAsid": 64496,
+    "comment": "Filter out all VAPs that have 64496 as Customer ASID"
+  },
+  {
+    "customerAsid": 64497,
+    "providers": [ 64498, 64499],
+    "comment": "Filter some providers with 64497 as Customer ASID"
+  },
+  {
+    "providers": [ 65003 ],
+    "comment": "Never accept 65003 as a valid provider."
+  }
+]
+}
+~~~
+!---
+Figure: "aspaFilters" Examples
+
+#### ASPA Unions and Filters
+
+Before applying any ASPA filter an RP MUST first obtain a set of
+validated ASPA objects, extract the Validated ASPA Payload (VAP) for
+each object, and then make unions of all VAPs pertaining to the same
+customer ASN. A unified VAP for a customer ASN will contain the union
+of all provider ASes that are contained in any of the source VAPs.
+
+Example using human readable ASPA notation [@!I-D.timbru-sidrops-aspa-notation]:
+
+!---
+~~~ ascii-art
+Given VAPs from ASPA Objects:
+  AS65000 => AS65001, AS65002, AS65003,
+  AS65000 =>          AS65002, AS65003, AS65004
+
+Unified VAP:
+  AS65000 => AS65001, AS65002, AS65003, AS65004
+~~~
+!---
+Figure: VAP Customer Only Filter Example
+
+##### Customer AS Only Filter
+
+If an ASPA filter specifies a "customerAsid" only, then the unified VAP
+matching the Customer Autonomous System MUST be removed entirely.
+
+Example using human readable ASPA notation:
+
+!---
+~~~ ascii-art
+Given VAP:
+  AS65000 => AS65001, AS65002
+
+Filter:
+  "customerAsid": AS65000
+
+Result:
+  VAP is removed completely
+~~~
+!---
+Figure: VAP Customer Only Filter Example
+
+##### Providers Only Filter
+
+If an ASPA filter specifies a "providers" array only, then matching
+provider AS statements MUST be removed from any unified VAP, i.e.
+regardless of the "customerAsid" used.
+
+Example using human readable ASPA notation:
+
+!---
+~~~ ascii-art
+Given VAPs:
+  AS65000 => AS65001, AS65002, AS65003, AS65004
+  AS65005 => AS65001, AS65002, AS65003, AS65004
+
+Filter:
+  "providers": [ 65001, 65002, 65003]
+
+Result:
+  AS65000 => AS65001, AS65004
+  AS65005 => AS65001, AS65004
+~~~
+!---
+Figure: VAP Provider Only Filter Example
+
+##### Customer AS and Providers Filter
+
+If a filter specifies both "customerAsid" and "providers", then the
+provider filter is applied only to the unified VAP that matches the
+Customer Autonomous System.
+
+Example using human readable ASPA notation:
+!---
+~~~ ascii-art
+Given VAPs:
+  AS65000 => AS65001, AS65002, AS65003, AS65004
+  AS65005 => AS65001, AS65002, AS65003, AS65004
+
+Filter:
+  "customerAsid": 65000,
+  "providers": [ 65002, 65003, 65004 ]
+
+Result:
+  AS65000 => AS65001
+  AS65005 => AS65001, AS65002, AS65003, AS65004
+~~~
+!---
+Figure: VAP Customer and Provider Filter Example
+
+##### ASPA Filter Considerations
+
+It should be noted that while this standard allows for fine-grained ASPA
+filters to be specified, no specific way to filter is recommended here.
+In other words, this document aims to give operators set logic oriented
+tools to manipulate the VAPs that would be communicated to their routers,
+but it does not make any assumptions about use cases and best practices.
+
+This design choice is based on the conviction that not all possible use
+cases can be known at this time, and that more deployment experience is
+needed before best practices can be formulated. It is however encouraged
+that this discussion takes place, and that, if needed, a follow-up document
+that describes use cases and best practices is made in future.
+
 ## Locally Added Assertions
 
 ### ROA Prefix Assertions
@@ -410,6 +557,8 @@ each of all of the following members:
    encoding of the subjectPublicKeyInfo, including the ASN.1 tag and
    length values of the subjectPublicKeyInfo SEQUENCE.
 
+*  An optional "comment" member, whose value is a string.
+
 The following example JSON structure represents a "bgpsecAssertions"
 member with one object as described above:
 
@@ -433,6 +582,43 @@ Parties MUST add any "bgpsecAssertions" member thus found to the set
 of Router Key PDUs, excluding duplicates, when using the RPKI-Router
 protocol [@!RFC8210].
 
+### ASPA Assertions
+
+Each RP is locally configured with a (possibly empty) array of ASPA
+assertions. It is RECOMMENDED that an explanatory comment is also included
+so that it can be shown to users of the RP software.
+
+The above is expressed as a value of the "aspaAssertions" member, as an
+array of zero or more objects. The object structure is similar to the
+ASPA filter structure, except that in this case both a "customerAsid"
+member and a "providers" member containing at at least one provider ASN
+MUST be specified.
+
+!---
+~~~ ascii-art
+"aspaAssertions": [
+  {
+    "customerAsid": 64496,
+    "providers": [ 64498, 64499, 64500 ],
+    "comment": "Authorize additional providers for customer AS 64496"
+  }
+]
+~~~
+!---
+Figure: "aspaAssertions" Example
+
+Assertions are applied after the RP obtained unified VAPs and applied
+any configured filters. If there is an existing unified and potentially
+partially filtered VAP for the assertion customer ASN, then the
+additional authorizations are merged into this in the same way as VAPs
+are merged (see section 4.3.3.1).
+
+Note that the presence of an ASPA assertion does not imply any filtering.
+If the intent is to replace all existing authorized providers then an
+ASPA filter for the customer ASN only (i.e. without listing providers)
+should be used in addition as this would ensure that the original
+unified VAP is removed before the assertion is applied.
+
 ## Example of a SLURM File with Filters and Assertions
 
 The following JSON structure represents an example of a SLURM file
@@ -441,7 +627,7 @@ that uses all the elements described in the previous sections:
 !---
 ~~~ ascii-art
 {
-  "slurmVersion": 1,
+  "slurmVersion": 2,
   "validationOutputFilters": {
     "prefixFilters": [
       {
@@ -472,6 +658,21 @@ that uses all the elements described in the previous sections:
         "SKI": "YmFy",
         "comment": "Key for ASN 64497 matching Router SKI"
       }
+    ],
+    "aspaFilters": [
+      {
+        "customerAsid": 64496,
+        "comment": "Filter out all VAPs for customer AS 64496"
+      },
+      {
+        "customerAsid": 64497,
+        "providers": [ 64498, 64499, 64500 ],
+        "comment": "Filter some providers for customer AS 64497"
+      },
+      {
+        "providers": [ 65001 ],
+        "comment": "Never accept 65001 as a valid provider."
+      }
     ]
   },
   "locallyAddedAssertions": {
@@ -494,6 +695,13 @@ that uses all the elements described in the previous sections:
         "comment" : "My known key for my important ASN",
         "SKI": "<some base64 SKI>",
         "routerPublicKey": "<some base64 public key>"
+      }
+    ],
+    "aspaAssertions": [
+      {
+        "customerAsid": 64496,
+        "providers": [ 64498, 64499, 64500 ],
+        "comment": "Authorize additional providers for AS 64496"
       }
     ]
   }

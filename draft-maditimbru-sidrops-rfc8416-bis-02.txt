@@ -6,12 +6,12 @@ Network Working Group                                              D. Ma
 Internet-Draft                                                      ZDNS
 Obsoletes: 8416 (if approved)                             T. Bruijnzeels
 Intended status: Standards Track                              NLnet Labs
-Expires: 30 October 2023                                   28 April 2023
+Expires: 6 January 2024                                      5 July 2023
 
 
    Simplified Local Internet Number Resource Management with the RPKI
                                 (SLURM)
-                    draft-maditimbru-rfc8416-bis-00
+                    draft-maditimbru-rfc8416-bis-02
 
 Abstract
 
@@ -42,7 +42,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 30 October 2023.
+   This Internet-Draft will expire on 6 January 2024.
 
 Copyright Notice
 
@@ -53,9 +53,9 @@ Copyright Notice
 
 
 
-Ma & Bruijnzeels         Expires 30 October 2023                [Page 1]
+Ma & Bruijnzeels         Expires 6 January 2024                 [Page 1]
 
-Internet-Draft                  SLURM v2                      April 2023
+Internet-Draft                  SLURM v2                       July 2023
 
 
    This document is subject to BCP 78 and the IETF Trust's Legal
@@ -71,26 +71,28 @@ Table of Contents
 
    1.  Requirements notation . . . . . . . . . . . . . . . . . . . .   2
    2.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
-   3.  RP with SLURM . . . . . . . . . . . . . . . . . . . . . . . .   4
+   3.  RP with SLURM . . . . . . . . . . . . . . . . . . . . . . . .   3
    4.  SLURM Files and Mechanisms  . . . . . . . . . . . . . . . . .   4
      4.1.  Use of JSON . . . . . . . . . . . . . . . . . . . . . . .   4
-     4.2.  SLURM File Overview . . . . . . . . . . . . . . . . . . .   5
-     4.3.  Validation Output Filters . . . . . . . . . . . . . . . .   6
+     4.2.  SLURM File Overview . . . . . . . . . . . . . . . . . . .   4
+     4.3.  Validation Output Filters . . . . . . . . . . . . . . . .   5
        4.3.1.  Validated ROA Prefix Filters  . . . . . . . . . . . .   6
        4.3.2.  BGPsec Assertion Filters  . . . . . . . . . . . . . .   7
-     4.4.  Locally Added Assertions  . . . . . . . . . . . . . . . .   8
-       4.4.1.  ROA Prefix Assertions . . . . . . . . . . . . . . . .   8
-       4.4.2.  BGPsec Assertions . . . . . . . . . . . . . . . . . .   9
-     4.5.  Example of a SLURM File with Filters and Assertions . . .  10
-   5.  SLURM File Configuration  . . . . . . . . . . . . . . . . . .  12
-     5.1.  SLURM File Atomicity  . . . . . . . . . . . . . . . . . .  12
-     5.2.  Multiple SLURM Files  . . . . . . . . . . . . . . . . . .  12
-   6.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  13
-   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  13
-   8.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .  14
-   9.  Normative References  . . . . . . . . . . . . . . . . . . . .  14
-   10. Informative References  . . . . . . . . . . . . . . . . . . .  15
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  16
+       4.3.3.  ASPA Filters  . . . . . . . . . . . . . . . . . . . .   8
+     4.4.  Locally Added Assertions  . . . . . . . . . . . . . . . .  11
+       4.4.1.  ROA Prefix Assertions . . . . . . . . . . . . . . . .  11
+       4.4.2.  BGPsec Assertions . . . . . . . . . . . . . . . . . .  13
+       4.4.3.  ASPA Assertions . . . . . . . . . . . . . . . . . . .  14
+     4.5.  Example of a SLURM File with Filters and Assertions . . .  14
+   5.  SLURM File Configuration  . . . . . . . . . . . . . . . . . .  16
+     5.1.  SLURM File Atomicity  . . . . . . . . . . . . . . . . . .  16
+     5.2.  Multiple SLURM Files  . . . . . . . . . . . . . . . . . .  17
+   6.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  17
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  17
+   8.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .  18
+   9.  Normative References  . . . . . . . . . . . . . . . . . . . .  18
+   10. Informative References  . . . . . . . . . . . . . . . . . . .  20
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  21
 
 1.  Requirements notation
 
@@ -107,11 +109,9 @@ Table of Contents
 
 
 
-
-
-Ma & Bruijnzeels         Expires 30 October 2023                [Page 2]
+Ma & Bruijnzeels         Expires 6 January 2024                 [Page 2]
 
-Internet-Draft                  SLURM v2                      April 2023
+Internet-Draft                  SLURM v2                       July 2023
 
 
 2.  Introduction
@@ -124,8 +124,9 @@ Internet-Draft                  SLURM v2                      April 2023
    authorize an Autonomous System (AS) to originate routes for that
    block.  Internet Service Providers (ISPs) can then use the RPKI to
    validate BGP routes.  (Validation of the origin of a route is
-   described in [RFC6811], and validation of the path of a route is
-   described in [RFC8205].)
+   described in [RFC6811], BGPSec validation of the path of a route is
+   described in [RFC8205], and ASPA based verification of the path is
+   decsribed in [I-D.ietf-sidrops-aspa-verification].
 
    However, an RPKI Relying Party (RP) may want to override some of the
    information expressed via configured Trust Anchors (TAs) and the
@@ -147,43 +148,28 @@ Internet-Draft                  SLURM v2                      April 2023
    called "Simplified Local Internet Number Resource Management with the
    RPKI (SLURM)".
 
-   SLURM allows an operator to create a local view of the global RPKI by
-   generating sets of assertions.  For origin validation [RFC6811], an
-   assertion is a tuple of {IP prefix, prefix length, maximum length,
-   Autonomous System Number (ASN)} as used by the RPKI-Router protocol,
-   version 0 [RFC6810] and version 1 [RFC8210].  For BGPsec [RFC8205],
-   an assertion is a tuple of {ASN, subject key identifier, router
-   public key} as used by version 1 of the RPKI-Router protocol.  (For
-   the remainder of this document, these assertions are called "ROA
-   Prefix Assertions" and "BGPsec Assertions", respectively.)
-
-
-
-
-
-
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023                [Page 3]
-
-Internet-Draft                  SLURM v2                      April 2023
-
-
 3.  RP with SLURM
 
    SLURM provides a simple way to enable an RP to establish a local,
    customized view of the RPKI, overriding RPKI repository data if
-   needed.  To that end, an RP with SLURM filters out (i.e., removes
-   from consideration for routing decisions) any assertions in the RPKI
-   that are overridden by local ROA Prefix Assertions and BGPsec
-   Assertions.
+   needed.  To that end, an RP with SLURM can filter out (i.e., removes
+   from consideration for routing decisions) ROA Prefix, ASPA and BGPSec
+   assertions in the RPKI, and can add local assertions instead or in
+   addition to the ones found in the RPKI.
 
    In general, the primary output of an RP is the data it sends to
    routers over the RPKI-Router protocol [RFC8210].  The RPKI-Router
    protocol enables routers to query an RP for all assertions it knows
    about (Reset Query) or for an update of only the changes in
    assertions (Serial Query).  The mechanisms specified in this document
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                 [Page 3]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
    are to be applied to the result set for a Reset Query and to both the
    old and new sets that are compared for a Serial Query.  RP software
    may modify other forms of output in comparable ways, but that is
@@ -215,26 +201,15 @@ Internet-Draft                  SLURM v2                      April 2023
    be errors.  Future additions to the specifications in this document
    MUST use an incremented value for the "slurmVersion" member.
 
-
-
-
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023                [Page 4]
-
-Internet-Draft                  SLURM v2                      April 2023
-
-
 4.2.  SLURM File Overview
 
    A SLURM file consists of a single JSON object containing following
    members:
 
-   *  A "slurmVersion" member that MUST be set to 1, encoded as a number
+   *  A "slurmVersion" member that MUST be set to 2, encoded as a number
 
    *  A "validationOutputFilters" member (Section 4.3), whose value is
-      an object.  The object MUST contain exactly two members:
+      an object.  The object MUST contain exactly three members:
 
       -  A "prefixFilters" member, whose value is described in
          Section 4.3.1.
@@ -242,14 +217,29 @@ Internet-Draft                  SLURM v2                      April 2023
       -  A "bgpsecFilters" member, whose value is described in
          Section 4.3.2.
 
+
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                 [Page 4]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
+      -  A "aspaFilters" member, whose value is described in
+         Section 4.3.3.
+
    *  A "locallyAddedAssertions" member (Section 3.4), whose value is an
-      object.  The object MUST contain exactly two members:
+      object.  The object MUST contain exactly three members:
 
       -  A "prefixAssertions" member, whose value is described in
          Section 4.4.1.
 
       -  A "bgpsecAssertions" member, whose value is described in
          Section 4.4.2.
+
+      -  A "aspaAssertions" member, whose value is described in
+         Section 4.4.3.
 
    In the envisioned typical use case, an RP uses both Validation Output
    Filters and Locally Added Assertions.  In this case, the resulting
@@ -261,28 +251,36 @@ Internet-Draft                  SLURM v2                      April 2023
    file that has no filters or assertions:
 
    {
-     "slurmVersion": 1,
+     "slurmVersion": 2,
      "validationOutputFilters": {
        "prefixFilters": [],
-       "bgpsecFilters": []
+       "bgpsecFilters": [],
+       "aspaFilters": []
      },
      "locallyAddedAssertions": {
        "prefixAssertions": [],
-       "bgpsecAssertions": []
+       "bgpsecAssertions": [],
+       "aspaAssertions": []
      }
    }
 
                          Figure 2: Empty SLURM File
 
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023                [Page 5]
-
-Internet-Draft                  SLURM v2                      April 2023
-
-
 4.3.  Validation Output Filters
+
+
+
+
+
+
+
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                 [Page 5]
+
+Internet-Draft                  SLURM v2                       July 2023
+
 
 4.3.1.  Validated ROA Prefix Filters
 
@@ -330,16 +328,15 @@ Internet-Draft                  SLURM v2                      April 2023
    Any Validated ROA Payload (VRP) [RFC6811] that matches any configured
    Prefix Filter MUST be removed from the RP's output.
 
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023                [Page 6]
-
-Internet-Draft                  SLURM v2                      April 2023
-
-
    A VRP is considered to match with a Prefix Filter if one of the
    following cases applies:
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                 [Page 6]
+
+Internet-Draft                  SLURM v2                       July 2023
+
 
    1.  If the Prefix Filter only contains an IPv4 or IPv6 prefix, the
        VRP is considered to match the filter if the VRP prefix is equal
@@ -389,9 +386,12 @@ Internet-Draft                  SLURM v2                      April 2023
 
 
 
-Ma & Bruijnzeels         Expires 30 October 2023                [Page 7]
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                 [Page 7]
 
-Internet-Draft                  SLURM v2                      April 2023
+Internet-Draft                  SLURM v2                       July 2023
 
 
    "bgpsecFilters": [
@@ -428,6 +428,178 @@ Internet-Draft                  SLURM v2                      April 2023
        ASN matches the Filter ASN and the Assertion Router SKI matches
        the Filter SKI.
 
+4.3.3.  ASPA Filters
+
+   The RP can configure zero or more ASPA Filters.  Each ASPA Filter can
+   contain a customer ASN and/or a list of providers ASNs.  It is
+   RECOMMENDED that an explanatory comment is included with each ASPA
+   Filter so that it can be shown to users of the RP software.
+
+   The above is expressed as a value of the "aspaFilters" member, as an
+   array of zero or more objects.  Each object MUST contain at least one
+   of the following members:
+
+   *  A "customerAsid" member, whose value is a number representing an
+      ASPA Customer Autonomous System as described in section 3.2 of
+      [I-D.ietf-sidrops-aspa-profile].
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                 [Page 8]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
+   *  A "providers" member, whose value is an array of 1 or more numbers
+      representing ASPA provider ASes as described in section 3.3 of
+      [I-D.ietf-sidrops-aspa-profile].
+
+   In addition, each object MAY contain one optional "comment" member,
+   whose value is a string.
+
+   The following example JSON structure represents a "aspaFilters"
+   member with an array of example objects for each use case listed
+   above:
+
+   {
+   "aspaFilters": [
+     {
+       "customerAsid": 64496,
+       "comment": "Filter out all VAPs that have 64496 as Customer ASID"
+     },
+     {
+       "customerAsid": 64497,
+       "providers": [ 64498, 64499],
+       "comment": "Filter some providers with 64497 as Customer ASID"
+     },
+     {
+       "providers": [ 65003 ],
+       "comment": "Never accept 65003 as a valid provider."
+     }
+   ]
+   }
+
+                      Figure 5: "aspaFilters" Examples
+
+4.3.3.1.  ASPA Unions and Filters
+
+   Before applying any ASPA filter an RP MUST first obtain a set of
+   validated ASPA objects, extract the Validated ASPA Payload (VAP) for
+   each object, and then make unions of all VAPs pertaining to the same
+   customer ASN.  A unified VAP for a customer ASN will contain the
+   union of all provider ASes that are contained in any of the source
+   VAPs.
+
+   Example using human readable ASPA notation
+   [I-D.timbru-sidrops-aspa-notation]:
+
+
+
+
+
+
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                 [Page 9]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
+   Given VAPs from ASPA Objects:
+     AS65000 => AS65001, AS65002, AS65003,
+     AS65000 =>          AS65002, AS65003, AS65004
+
+   Unified VAP:
+     AS65000 => AS65001, AS65002, AS65003, AS65004
+
+                 Figure 6: VAP Customer Only Filter Example
+
+4.3.3.1.1.  Customer AS Only Filter
+
+   If an ASPA filter specifies a "customerAsid" only, then the unified
+   VAP matching the Customer Autonomous System MUST be removed entirely.
+
+   Example using human readable ASPA notation:
+
+   Given VAP:
+     AS65000 => AS65001, AS65002
+
+   Filter:
+     "customerAsid": AS65000
+
+   Result:
+     VAP is removed completely
+
+                 Figure 7: VAP Customer Only Filter Example
+
+4.3.3.1.2.  Providers Only Filter
+
+   If an ASPA filter specifies a "providers" array only, then matching
+   provider AS statements MUST be removed from any unified VAP, i.e.
+   regardless of the "customerAsid" used.
+
+   Example using human readable ASPA notation:
+
+   Given VAPs:
+     AS65000 => AS65001, AS65002, AS65003, AS65004
+     AS65005 => AS65001, AS65002, AS65003, AS65004
+
+   Filter:
+     "providers": [ 65001, 65002, 65003]
+
+   Result:
+     AS65000 => AS65001, AS65004
+     AS65005 => AS65001, AS65004
+
+                 Figure 8: VAP Provider Only Filter Example
+
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 10]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
+4.3.3.1.3.  Customer AS and Providers Filter
+
+   If a filter specifies both "customerAsid" and "providers", then the
+   provider filter is applied only to the unified VAP that matches the
+   Customer Autonomous System.
+
+   Example using human readable ASPA notation:
+
+   Given VAPs:
+     AS65000 => AS65001, AS65002, AS65003, AS65004
+     AS65005 => AS65001, AS65002, AS65003, AS65004
+
+   Filter:
+     "customerAsid": 65000,
+     "providers": [ 65002, 65003, 65004 ]
+
+   Result:
+     AS65000 => AS65001
+     AS65005 => AS65001, AS65002, AS65003, AS65004
+
+             Figure 9: VAP Customer and Provider Filter Example
+
+4.3.3.1.4.  ASPA Filter Considerations
+
+   It should be noted that while this standard allows for fine-grained
+   ASPA filters to be specified, no specific way to filter is
+   recommended here.  In other words, this document aims to give
+   operators set logic oriented tools to manipulate the VAPs that would
+   be communicated to their routers, but it does not make any
+   assumptions about use cases and best practices.
+
+   This design choice is based on the conviction that not all possible
+   use cases can be known at this time, and that more deployment
+   experience is needed before best practices can be formulated.  It is
+   however encouraged that this discussion takes place, and that, if
+   needed, a follow-up document that describes use cases and best
+   practices is made in future.
+
 4.4.  Locally Added Assertions
 
 4.4.1.  ROA Prefix Assertions
@@ -439,16 +611,16 @@ Internet-Draft                  SLURM v2                      April 2023
    explanatory comment is also included with each so that it can be
    shown to users of the RP software.
 
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 11]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
    The above is expressed as a value of the "prefixAssertions" member,
    as an array of zero or more objects.  Each object MUST contain one of
    each of the following members:
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023                [Page 8]
-
-Internet-Draft                  SLURM v2                      April 2023
-
 
    *  A "prefix" member, whose value is a string representing either an
       IPv4 prefix (see Section 3.1 of [RFC4632]) or an IPv6 prefix (see
@@ -481,7 +653,7 @@ Internet-Draft                  SLURM v2                      April 2023
      }
    ]
 
-                   Figure 5: "prefixAssertions" Examples
+                   Figure 10: "prefixAssertions" Examples
 
    Note that the combination of the prefix, ASN, and optional maximum
    length describes a VRP as described in [RFC6811].  The RP MUST add
@@ -490,6 +662,18 @@ Internet-Draft                  SLURM v2                      April 2023
    Units (PDUs), excluding duplicates when using the RPKI-Router
    protocol (see Sections 5.6 and 5.7 of [RFC8210]).
 
+
+
+
+
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 12]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
 4.4.2.  BGPsec Assertions
 
    Each RP is locally configured with a (possibly empty) array of BGPsec
@@ -497,14 +681,6 @@ Internet-Draft                  SLURM v2                      April 2023
    Router SKI, and the router public key.  It is RECOMMENDED that an
    explanatory comment is also included so that it can be shown to users
    of the RP software.
-
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023                [Page 9]
-
-Internet-Draft                  SLURM v2                      April 2023
-
 
    The above is expressed as a value of the "bgpsecAssertions" member,
    as an array of zero or more objects.  Each object MUST contain one
@@ -525,6 +701,8 @@ Internet-Draft                  SLURM v2                      April 2023
       encoding of the subjectPublicKeyInfo, including the ASN.1 tag and
       length values of the subjectPublicKeyInfo SEQUENCE.
 
+   *  An optional "comment" member, whose value is a string.
+
    The following example JSON structure represents a "bgpsecAssertions"
    member with one object as described above:
 
@@ -537,7 +715,7 @@ Internet-Draft                  SLURM v2                      April 2023
      }
    ]
 
-                   Figure 6: "bgpsecAssertions" Examples
+                   Figure 11: "bgpsecAssertions" Examples
 
    Note that a "bgpsecAssertions" member matches the syntax of the
    Router Key PDU described in Section 5.10 of [RFC8210].  Relying
@@ -545,31 +723,69 @@ Internet-Draft                  SLURM v2                      April 2023
    of Router Key PDUs, excluding duplicates, when using the RPKI-Router
    protocol [RFC8210].
 
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 13]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
+4.4.3.  ASPA Assertions
+
+   Each RP is locally configured with a (possibly empty) array of ASPA
+   assertions.  It is RECOMMENDED that an explanatory comment is also
+   included so that it can be shown to users of the RP software.
+
+   The above is expressed as a value of the "aspaAssertions" member, as
+   an array of zero or more objects.  The object structure is similar to
+   the ASPA filter structure, except that in this case both a
+   "customerAsid" member and a "providers" member containing at at least
+   one provider ASN MUST be specified.
+
+   "aspaAssertions": [
+     {
+       "customerAsid": 64496,
+       "providers": [ 64498, 64499, 64500 ],
+       "comment": "Authorize additional providers for customer AS 64496"
+     }
+   ]
+
+                    Figure 12: "aspaAssertions" Example
+
+   Assertions are applied after the RP obtained unified VAPs and applied
+   any configured filters.  If there is an existing unified and
+   potentially partially filtered VAP for the assertion customer ASN,
+   then the additional authorizations are merged into this in the same
+   way as VAPs are merged (see section 4.3.3.1).
+
+   Note that the presence of an ASPA assertion does not imply any
+   filtering.  If the intent is to replace all existing authorized
+   providers then an ASPA filter for the customer ASN only (i.e. without
+   listing providers) should be used in addition as this would ensure
+   that the original unified VAP is removed before the assertion is
+   applied.
+
 4.5.  Example of a SLURM File with Filters and Assertions
 
    The following JSON structure represents an example of a SLURM file
    that uses all the elements described in the previous sections:
 
-
-
-
-
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023               [Page 10]
-
-Internet-Draft                  SLURM v2                      April 2023
-
-
    {
-     "slurmVersion": 1,
+     "slurmVersion": 2,
      "validationOutputFilters": {
        "prefixFilters": [
          {
            "prefix": "192.0.2.0/24",
            "comment": "All VRPs encompassed by prefix"
          },
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 14]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
          {
            "asn": 64496,
            "comment": "All VRPs matching ASN"
@@ -594,6 +810,21 @@ Internet-Draft                  SLURM v2                      April 2023
            "SKI": "YmFy",
            "comment": "Key for ASN 64497 matching Router SKI"
          }
+       ],
+       "aspaFilters": [
+         {
+           "customerAsid": 64496,
+           "comment": "Filter out all VAPs for customer AS 64496"
+         },
+         {
+           "customerAsid": 64497,
+           "providers": [ 64498, 64499, 64500 ],
+           "comment": "Filter some providers for customer AS 64497"
+         },
+         {
+           "providers": [ 65001 ],
+           "comment": "Never accept 65001 as a valid provider."
+         }
        ]
      },
      "locallyAddedAssertions": {
@@ -603,6 +834,14 @@ Internet-Draft                  SLURM v2                      April 2023
            "prefix": "198.51.100.0/24",
            "comment": "My other important route"
          },
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 15]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
          {
            "asn": 64496,
            "prefix": "2001:DB8::/32",
@@ -610,14 +849,6 @@ Internet-Draft                  SLURM v2                      April 2023
            "comment": "My other important de-aggregated routes"
          }
        ],
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023               [Page 11]
-
-Internet-Draft                  SLURM v2                      April 2023
-
-
        "bgpsecAssertions": [
          {
            "asn": 64496,
@@ -625,11 +856,18 @@ Internet-Draft                  SLURM v2                      April 2023
            "SKI": "<some base64 SKI>",
            "routerPublicKey": "<some base64 public key>"
          }
+       ],
+       "aspaAssertions": [
+         {
+           "customerAsid": 64496,
+           "providers": [ 64498, 64499, 64500 ],
+           "comment": "Authorize additional providers for AS 64496"
+         }
        ]
      }
    }
 
-                    Figure 7: Example of Full SLURM File
+                   Figure 13: Example of Full SLURM File
 
 5.  SLURM File Configuration
 
@@ -645,6 +883,20 @@ Internet-Draft                  SLURM v2                      April 2023
    [RFC6811].  If both additions occur, then both routes would be in the
    Valid state.  However, if one addition occurs and the other does not,
    then one could be Invalid while the other is Valid.
+
+
+
+
+
+
+
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 16]
+
+Internet-Draft                  SLURM v2                       July 2023
+
 
 5.2.  Multiple SLURM Files
 
@@ -663,16 +915,6 @@ Internet-Draft                  SLURM v2                      April 2023
    the SLURM files in question.  The RP gets multiple SLURM files as a
    set, and the whole set MUST be rejected in case of any overlaps among
    the SLURM files.
-
-
-
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023               [Page 12]
-
-Internet-Draft                  SLURM v2                      April 2023
-
 
    If a problem is detected with the INR assertions in these SLURM
    files, the RP MUST NOT use them and SHOULD issue a warning as error
@@ -704,6 +946,14 @@ Internet-Draft                  SLURM v2                      April 2023
    use SLURM to (locally) manipulate assertions about non-private INRs,
    e.g., allocated address space that is globally routed.  For example,
    a SLURM file may be used to override RPKI data that a network
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 17]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
    operator believes has been corrupted by an adverse action.  Network
    operators who elect to use SLURM in this fashion should use extreme
    caution.
@@ -722,14 +972,6 @@ Internet-Draft                  SLURM v2                      April 2023
    integrity of any SLURM file that it uses.  Initially, the SLURM file
    may be preconfigured out of band, but if the RP updates its SLURM
    file over the network, it MUST verify the authenticity and integrity
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023               [Page 13]
-
-Internet-Draft                  SLURM v2                      April 2023
-
-
    of the updated SLURM file.  The mechanism to update the SLURM file to
    guarantee authenticity and integrity is out of the scope of this
    document.
@@ -742,6 +984,38 @@ Internet-Draft                  SLURM v2                      April 2023
    their contributions to [RFC8416].
 
 9.  Normative References
+
+   [I-D.ietf-sidrops-aspa-profile]
+              Azimov, A., Uskov, E., Bush, R., Snijders, J., Housley,
+              R., and B. Maddison, "A Profile for Autonomous System
+              Provider Authorization", Work in Progress, Internet-Draft,
+              draft-ietf-sidrops-aspa-profile-15, 8 June 2023,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-
+              aspa-profile-15>.
+
+   [I-D.ietf-sidrops-aspa-verification]
+              Azimov, A., Bogomazov, E., Bush, R., Patel, K., Snijders,
+              J., and K. Sriram, "BGP AS_PATH Verification Based on
+              Autonomous System Provider Authorization (ASPA) Objects",
+              Work in Progress, Internet-Draft, draft-ietf-sidrops-aspa-
+              verification-14, 19 April 2023,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-
+              aspa-verification-14>.
+
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 18]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
+   [I-D.timbru-sidrops-aspa-notation]
+              Bruijnzeels, T., Borchert, O., and D. Ma, "Human Readable
+              ASPA Notation", Work in Progress, Internet-Draft, draft-
+              timbru-sidrops-aspa-notation-00, 11 May 2023,
+              <https://datatracker.ietf.org/doc/html/draft-timbru-
+              sidrops-aspa-notation-00>.
 
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
@@ -776,16 +1050,6 @@ Internet-Draft                  SLURM v2                      April 2023
               2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
               May 2017, <https://www.rfc-editor.org/info/rfc8174>.
 
-
-
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023               [Page 14]
-
-Internet-Draft                  SLURM v2                      April 2023
-
-
    [RFC8205]  Lepinski, M., Ed. and K. Sriram, Ed., "BGPsec Protocol
               Specification", RFC 8205, DOI 10.17487/RFC8205, September
               2017, <https://www.rfc-editor.org/info/rfc8205>.
@@ -794,6 +1058,13 @@ Internet-Draft                  SLURM v2                      April 2023
               Formats, and Signature Formats", RFC 8208,
               DOI 10.17487/RFC8208, September 2017,
               <https://www.rfc-editor.org/info/rfc8208>.
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 19]
+
+Internet-Draft                  SLURM v2                       July 2023
+
 
    [RFC8209]  Reynolds, M., Turner, S., and S. Kent, "A Profile for
               BGPsec Router Certificates, Certificate Revocation Lists,
@@ -832,16 +1103,6 @@ Internet-Draft                  SLURM v2                      April 2023
               Addresses", RFC 4193, DOI 10.17487/RFC4193, October 2005,
               <https://www.rfc-editor.org/info/rfc4193>.
 
-
-
-
-
-
-Ma & Bruijnzeels         Expires 30 October 2023               [Page 15]
-
-Internet-Draft                  SLURM v2                      April 2023
-
-
    [RFC6482]  Lepinski, M., Kent, S., and D. Kong, "A Profile for Route
               Origin Authorizations (ROAs)", RFC 6482,
               DOI 10.17487/RFC6482, February 2012,
@@ -852,15 +1113,19 @@ Internet-Draft                  SLURM v2                      April 2023
               RFC 6491, DOI 10.17487/RFC6491, February 2012,
               <https://www.rfc-editor.org/info/rfc6491>.
 
+
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 20]
+
+Internet-Draft                  SLURM v2                       July 2023
+
+
    [RFC6598]  Weil, J., Kuarsingh, V., Donley, C., Liljenstolpe, C., and
               M. Azinger, "IANA-Reserved IPv4 Prefix for Shared Address
               Space", BCP 153, RFC 6598, DOI 10.17487/RFC6598, April
               2012, <https://www.rfc-editor.org/info/rfc6598>.
-
-   [RFC6810]  Bush, R. and R. Austein, "The Resource Public Key
-              Infrastructure (RPKI) to Router Protocol", RFC 6810,
-              DOI 10.17487/RFC6810, January 2013,
-              <https://www.rfc-editor.org/info/rfc6810>.
 
    [RFC6996]  Mitchell, J., "Autonomous System (AS) Reservation for
               Private Use", BCP 6, RFC 6996, DOI 10.17487/RFC6996, July
@@ -893,4 +1158,19 @@ Authors' Addresses
 
 
 
-Ma & Bruijnzeels         Expires 30 October 2023               [Page 16]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ma & Bruijnzeels         Expires 6 January 2024                [Page 21]
