@@ -7,7 +7,7 @@ obsoletes = [ 8416 ]
 [seriesInfo]
 status = "standard"
 name = "Internet-Draft"
-value = "draft-maditimbru-rfc8416-bis-02"
+value = "draft-maditimbru-rfc8416-bis-01"
 
 [[author]]
 initials="D."

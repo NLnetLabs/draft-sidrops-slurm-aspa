@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
-<rfc version="3" ipr="trust200902" docName="draft-maditimbru-rfc8416-bis-02" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" obsoletes="8416" indexInclude="false" consensus="true">
+<rfc version="3" ipr="trust200902" docName="draft-maditimbru-rfc8416-bis-01" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" obsoletes="8416" indexInclude="false" consensus="true">
 
 <front>
-<title abbrev="SLURM v2">Simplified Local Internet Number Resource Management with the RPKI (SLURM)</title><seriesInfo value="draft-maditimbru-rfc8416-bis-02" status="standard" name="Internet-Draft"></seriesInfo>
+<title abbrev="SLURM v2">Simplified Local Internet Number Resource Management with the RPKI (SLURM)</title><seriesInfo value="draft-maditimbru-rfc8416-bis-01" status="standard" name="Internet-Draft"></seriesInfo>
 <author initials="D." surname="Ma" fullname="Di Ma"><organization>ZDNS</organization><address><postal><street></street>
 </postal><email>madi@zdns.cn</email>
 </address></author><author initials="T." surname="Bruijnzeels" fullname="Tim Bruijnzeels"><organization>NLnet Labs</organization><address><postal><street></street>
